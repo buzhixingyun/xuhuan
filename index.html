@@ -2,24 +2,32 @@
 <html lang="zh-CN">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- Mobile Optimized Viewport: No zoom, cover notch area -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="theme-color" content="#1a0b12">
     <title>浪漫圣诞 | Romantic Christmas</title>
     <style>
       body {
         margin: 0;
         padding: 0;
-        background-color: #1a0b12; /* Very dark warm purple/brown */
+        background-color: #1a0b12; 
         overflow: hidden;
-        /* Cute/Soft fonts */
         font-family: 'Quicksand', 'PingFang SC', 'Microsoft YaHei', sans-serif;
         color: #ffdde1;
         user-select: none;
+        -webkit-tap-highlight-color: transparent; /* Remove click highlight on mobile */
+        /* Safe area handling for notched phones */
+        padding-top: env(safe-area-inset-top);
+        padding-bottom: env(safe-area-inset-bottom);
+        padding-left: env(safe-area-inset-left);
+        padding-right: env(safe-area-inset-right);
       }
       #root {
         width: 100vw;
         height: 100vh;
         position: relative;
-        background: radial-gradient(circle at center, #2e1c2b 0%, #1a0b12 100%);
+        background: radial-gradient(circle at center, #3a2232 0%, #150810 100%);
       }
 
       /* --- UI Layout Containers --- */
@@ -31,74 +39,154 @@
         height: 100%;
         pointer-events: none;
         z-index: 10;
+        display: flex;
+        flex-direction: column;
       }
 
-      /* 1. Landing Page Styles (Centered) */
+      /* 1. Landing Page Styles (Responsive) */
       .landing-overlay {
         width: 100%;
         height: 100%;
         display: flex;
         justify-content: center;
         align-items: center;
-        background: rgba(46, 28, 43, 0.4); /* Slight dim */
-        backdrop-filter: blur(5px);
+        background: rgba(46, 28, 43, 0.4);
+        backdrop-filter: blur(8px);
+        -webkit-backdrop-filter: blur(8px);
         transition: opacity 0.8s ease;
+        padding: 20px;
+        box-sizing: border-box;
       }
 
       .landing-card {
         pointer-events: auto;
-        background: rgba(255, 240, 245, 0.25); /* More opaque for landing */
-        border: 3px solid rgba(255, 192, 203, 0.4);
-        padding: 40px;
+        background: rgba(255, 240, 245, 0.35); /* More opaque for readability */
+        border: 1px solid rgba(255, 255, 255, 0.3);
+        padding: 30px;
         border-radius: 30px;
         text-align: center;
-        box-shadow: 0 20px 50px rgba(0, 0, 0, 0.3), 
-                    0 0 30px rgba(255, 183, 197, 0.2);
-        max-width: 420px;
-        width: 90%;
+        box-shadow: 0 20px 50px rgba(0, 0, 0, 0.3);
+        width: 100%;
+        max-width: 420px; /* Tablet limit */
         animation: float-card 6s ease-in-out infinite;
         position: relative;
         overflow: hidden;
       }
 
-      /* Decorative sparkles */
-      .landing-card::before {
-        content: '✨';
-        position: absolute;
-        top: 15px;
-        left: 20px;
-        font-size: 24px;
-        animation: twinkle 3s infinite;
-      }
-      .landing-card::after {
-        content: '🌸';
-        position: absolute;
-        bottom: 15px;
-        right: 20px;
-        font-size: 24px;
-        animation: float-cursor 4s infinite;
-      }
-
-      /* 2. HUD Styles (Side Panel) */
+      /* 2. HUD Styles (Adaptive for Tablet/Mobile) */
       .hud-overlay {
         width: 100%;
         height: 100%;
+        padding: 20px;
+        box-sizing: border-box;
+        pointer-events: none;
         display: flex;
         flex-direction: column;
-        justify-content: flex-start;
-        padding: 24px;
-        box-sizing: border-box;
+        justify-content: space-between;
       }
 
+      /* Tablet/Desktop: Top Left */
       .controls-hud {
         pointer-events: auto;
         background: rgba(255, 240, 245, 0.15);
-        border: 2px solid rgba(255, 183, 197, 0.3);
-        padding: 20px;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        padding: 16px;
         border-radius: 20px;
-        backdrop-filter: blur(10px);
-        max-width: 280px;
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        max-width: 260px;
         animation: slide-in 0.5s ease-out;
+      }
+
+      /* Mobile Layout adjustments */
+      @media (max-width: 768px) {
+        .hud-overlay {
+            padding: 15px;
+        }
+        .controls-hud {
+            width: auto;
+            max-width: none;
+            align-self: stretch;
+            background: rgba(20, 10, 15, 0.4); /* Darker on mobile for contrast */
+            padding: 12px;
+            border-radius: 16px;
+            margin-bottom: auto; /* Push to top */
+        }
+        .controls-hud h1 {
+            font-size: 1.5rem;
+            margin-bottom: 5px;
+        }
+        .controls-hud p, .controls-hud li {
+            font-size: 0.85rem;
+        }
+        /* Hide full gesture list on small screens if needed, or make compact */
+        .controls-hud ul {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            padding: 0;
+            list-style: none;
+            margin: 5px 0;
+        }
+        .controls-hud li {
+            background: rgba(255,255,255,0.1);
+            padding: 4px 8px;
+            border-radius: 8px;
+        }
+      }
+
+      /* Music Player Styles - Bottom Right or Full width on mobile */
+      .music-player {
+        pointer-events: auto;
+        background: rgba(0, 0, 0, 0.4);
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        padding: 8px 16px;
+        border-radius: 50px;
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        align-self: flex-start; /* Default left */
+        margin-top: auto; 
+        transition: all 0.2s ease;
+        /* Touch target size optimization */
+        min-height: 44px; 
+      }
+      
+      @media (min-width: 769px) {
+          /* Tablet landscape / Desktop: Bottom Left */
+          .music-player {
+              align-self: flex-start;
+          }
+      }
+      
+      @media (max-width: 768px) {
+          /* Mobile: Bottom Right */
+          .music-player {
+              align-self: flex-end;
+          }
+      }
+
+      .music-icon {
+        font-size: 1.4rem;
+        animation: spin 4s linear infinite;
+        animation-play-state: paused;
+      }
+      .music-player.playing .music-icon {
+        animation-play-state: running;
+      }
+      .music-btn {
+        background: none;
+        border: none;
+        color: #ffb7c5;
+        font-size: 1rem;
+        font-weight: 600;
+        padding: 0 5px;
+        /* Ensure touch target */
+        height: 100%;
+        display: flex;
+        align-items: center;
       }
 
       /* --- Typography & Elements --- */
@@ -106,79 +194,45 @@
         margin: 0 0 10px 0;
         font-family: 'Pacifico', cursive;
         font-weight: 400;
-        font-size: 2.8rem;
+        font-size: 2.2rem;
         background: linear-gradient(135deg, #fff0f5 0%, #ffb7c5 100%);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
-        filter: drop-shadow(0 2px 4px rgba(255,105,180,0.3));
         line-height: 1.2;
-      }
-      .controls-hud h1 {
-        font-size: 1.8rem; /* Smaller in HUD */
       }
 
       .subtitle {
-        font-size: 1.1rem;
+        font-size: 1rem;
         color: #ffe6eb;
-        margin-bottom: 30px;
-        font-weight: 500;
-        letter-spacing: 1px;
-      }
-
-      p, li {
-        font-size: 0.95rem;
-        line-height: 1.6;
-        color: #ffe6eb;
+        margin-bottom: 25px;
         font-weight: 500;
       }
-      ul {
-        padding-left: 20px;
-        list-style-type: '🌸 ';
-        text-align: left;
-        margin-top: 10px;
-      }
-      strong { color: #ffb7c5; }
 
-      /* --- Buttons --- */
+      /* --- Buttons (Touch Friendly) --- */
       .btn {
         background: linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%);
         border: none;
         color: #5e3a45;
-        padding: 16px 32px;
-        font-size: 1.2rem;
+        padding: 16px 24px;
+        font-size: 1.1rem;
         font-weight: 700;
-        cursor: pointer;
         border-radius: 50px;
-        margin-top: 10px;
+        margin-top: 15px;
         width: 100%;
-        letter-spacing: 2px;
-        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        letter-spacing: 1px;
         font-family: 'Quicksand', sans-serif;
         box-shadow: 0 6px 20px rgba(255, 154, 158, 0.4);
         position: relative;
         overflow: hidden;
+        /* Touch optimization */
+        min-height: 56px; 
+        touch-action: manipulation;
       }
-      .btn:hover {
-        transform: translateY(-3px) scale(1.02);
-        box-shadow: 0 10px 25px rgba(255, 154, 158, 0.6);
-      }
-      .btn::after {
-        content: '';
-        position: absolute;
-        top: 0; left: -100%;
-        width: 100%; height: 100%;
-        background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
-        transition: 0.5s;
-      }
-      .btn:hover::after {
-        left: 100%;
-      }
-      
-      .btn.highlight {
-        animation: pulse-pink 2s infinite;
+      .btn:active {
+        transform: scale(0.96);
       }
 
-      /* --- File Upload --- */
+      /* --- File Upload (Touch Friendly) --- */
       .file-upload-container {
         display: flex;
         flex-direction: column;
@@ -191,61 +245,68 @@
         display: flex;
         align-items: center;
         justify-content: center;
-        padding: 15px;
+        padding: 20px; /* Larger hit area */
         border: 2px dashed rgba(255, 183, 197, 0.6);
         border-radius: 20px;
-        cursor: pointer;
         color: #fff;
         font-size: 1rem;
         font-weight: 600;
-        transition: all 0.3s;
         background: rgba(255, 255, 255, 0.05);
-      }
-      .file-upload-label:hover {
-        background: rgba(255, 255, 255, 0.15);
-        border-color: #fff;
-        transform: scale(1.02);
-      }
-      .photo-count {
-        font-size: 0.8rem;
-        color: #ffb7c5;
-        margin-top: 5px;
+        min-height: 60px;
       }
 
-      .clear-btn {
-        background: transparent;
-        border: 1px solid rgba(255, 255, 255, 0.3);
-        color: #ffdde1;
-        padding: 5px 12px;
-        border-radius: 10px;
-        cursor: pointer;
-        font-size: 0.8rem;
-        align-self: flex-end;
-      }
-      .clear-btn:hover { background: rgba(255,255,255,0.1); }
       input[type="file"] { display: none; }
       
-      /* --- Others --- */
+      /* --- Webcam Preview (Picture in Picture style) --- */
       #webcam-preview {
         position: absolute;
-        bottom: 24px;
-        right: 24px;
-        width: 140px;
-        height: 105px;
-        border: 4px solid #ffb7c5;
-        border-radius: 15px;
-        opacity: 0.8;
+        top: 20px; 
+        right: 20px;
+        width: 80px; /* Smaller on mobile to save space */
+        height: 60px;
+        border: 2px solid rgba(255, 183, 197, 0.5);
+        border-radius: 12px;
+        opacity: 0.6;
         transform: scaleX(-1);
         z-index: 5;
         pointer-events: none;
         display: none;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        object-fit: cover;
       }
+      #webcam-preview.active { display: block; }
       
+      #gesture-feedback {
+        position: absolute;
+        top: 20px; /* Align with webcam */
+        right: 110px; /* Left of webcam */
+        color: #fff;
+        font-size: 1.1rem;
+        font-weight: bold;
+        pointer-events: none;
+        text-shadow: 0 0 10px rgba(255, 105, 180, 0.6);
+        background: rgba(0,0,0,0.3);
+        padding: 6px 12px;
+        border-radius: 16px;
+        backdrop-filter: blur(4px);
+        white-space: nowrap;
+      }
+
+      @media (max-width: 600px) {
+          #gesture-feedback {
+              top: auto;
+              bottom: 80px;
+              right: 50%;
+              transform: translateX(50%);
+              font-size: 1.2rem;
+              background: rgba(0,0,0,0.5);
+          }
+      }
+
+      /* Hand cursor - keep it but subtle */
       #hand-cursor {
         position: absolute;
         top: 0; left: 0;
-        width: 40px; height: 40px;
+        width: 40px; height: 40px; /* Larger for visibility */
         pointer-events: none;
         z-index: 100;
         transform: translate(-50%, -50%);
@@ -255,27 +316,22 @@
         justify-content: center;
         align-items: center;
         font-size: 30px;
-        text-shadow: 0 0 10px rgba(255, 192, 203, 0.8);
       }
       #hand-cursor::after {
         content: '✨';
-        animation: float-cursor 2s ease-in-out infinite;
+        animation: float-cursor 1s ease-in-out infinite;
       }
 
-      #gesture-feedback {
+      .trail-dot {
         position: absolute;
-        top: 24px;
-        right: 24px;
-        color: #fff;
-        font-family: 'Quicksand', sans-serif;
-        font-size: 1.4rem;
-        font-weight: bold;
+        width: 10px; height: 10px;
+        background: #fff;
+        border-radius: 50%;
         pointer-events: none;
-        text-shadow: 0 0 15px rgba(255, 105, 180, 0.6);
-        background: rgba(0,0,0,0.2);
-        padding: 8px 16px;
-        border-radius: 20px;
-        backdrop-filter: blur(4px);
+        z-index: 99;
+        opacity: 0;
+        box-shadow: 0 0 8px #ffb7c5;
+        animation: fade-out 0.8s forwards;
       }
 
       /* --- Animations --- */
@@ -292,13 +348,14 @@
         0%, 100% { transform: scale(1); } 
         50% { transform: scale(1.2); } 
       }
-      @keyframes twinkle {
-        0%, 100% { opacity: 0.5; transform: scale(1); }
-        50% { opacity: 1; transform: scale(1.2) rotate(10deg); }
+      @keyframes spin { 100% { transform: rotate(360deg); } }
+      @keyframes fade-out {
+        0% { opacity: 0.8; transform: scale(1); }
+        100% { opacity: 0; transform: scale(0.2); }
       }
       @keyframes slide-in {
-        from { opacity: 0; transform: translateX(-20px); }
-        to { opacity: 1; transform: translateX(0); }
+        from { opacity: 0; transform: translateY(-10px); }
+        to { opacity: 1; transform: translateY(0); }
       }
     </style>
     <!-- Cute fonts -->
@@ -310,7 +367,7 @@
     <!-- 
       FIXED ImportMap:
       Strictly using esm.sh for React 18.2.0 and Three.js 0.160.0.
-      Removed all conflicting versions.
+      Removed all conflicting versions from aistudiocdn.
     -->
     <script type="importmap">
 {
