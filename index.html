@@ -10,8 +10,8 @@
         padding: 0;
         background-color: #000;
         overflow: hidden;
-        font-family: 'Cinzel', 'Georgia', serif; /* More festive/cinematic font preference */
-        color: #d4af37; /* Gold */
+        font-family: 'Cinzel', 'Georgia', serif;
+        color: #d4af37;
         user-select: none;
       }
       #root {
@@ -138,15 +138,16 @@
         border: 1px solid rgba(212,175,55,0.3);
       }
     </style>
-    <!-- 
-      Use Google Fonts for a more "Magical/Cinematic" feel 
-    -->
     <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Lato:wght@300;400&display=swap" rel="stylesheet">
     
+    <!-- Babel for compiling TSX in the browser -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
     <!-- 
-      Standard Import Map for GitHub Pages Deployment 
-      Using esm.sh ensures the modules load correctly without a bundler.
-      FIXED: Removed conflicting React versions. Now purely using React 18.2.0.
+      FIXED ImportMap:
+      1. All dependencies use esm.sh.
+      2. Mapped "three/examples/jsm/" specifically to handle sub-modules.
+      3. Removed conflicting React 19 versions.
     -->
     <script type="importmap">
 {
@@ -155,9 +156,10 @@
     "react/jsx-runtime": "https://esm.sh/react@18.2.0/jsx-runtime",
     "react-dom/client": "https://esm.sh/react-dom@18.2.0/client",
     "three": "https://esm.sh/three@0.160.0",
-    "three/": "https://esm.sh/three@0.160.0/",
+    "three/examples/jsm/": "https://esm.sh/three@0.160.0/examples/jsm/",
     "@mediapipe/tasks-vision": "https://esm.sh/@mediapipe/tasks-vision@0.10.8",
     "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.1/",
+    "three/": "https://aistudiocdn.com/three@^0.181.2/",
     "react/": "https://aistudiocdn.com/react@^19.2.1/"
   }
 }
@@ -165,11 +167,18 @@
   </head>
   <body>
     <div id="root"></div>
+    
     <!-- 
-       CRITICAL CHANGE for GitHub Pages: 
-       Use "./index.tsx" (relative path) instead of "/index.tsx" (absolute path).
-       This allows the app to run in a subdirectory (e.g., username.github.io/repo-name/).
+      CRITICAL for GitHub Pages Static Deployment:
+      1. type="text/babel": Tells Babel to compile this.
+      2. data-type="module": Tells Babel to treat imports as ES Modules.
+      3. data-presets="react,typescript": Enables React and TS syntax.
     -->
-    <script type="module" src="./index.tsx"></script>
+    <script 
+      type="text/babel" 
+      data-type="module" 
+      data-presets="react,typescript" 
+      src="./index.tsx">
+    </script>
   </body>
 </html>
