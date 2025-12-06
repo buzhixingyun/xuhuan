@@ -103,6 +103,7 @@
         pointer-events: none;
         display: none;
         box-shadow: 0 0 20px rgba(0,0,0,0.5);
+        background: #000;
       }
       .file-upload-label {
         display: flex;
@@ -121,6 +122,9 @@
       .file-upload-label:hover {
         background: rgba(212, 175, 55, 0.15);
         border-color: #d4af37;
+      }
+      input[type="file"] {
+        display: none;
       }
       #gesture-feedback {
         position: absolute;
@@ -144,10 +148,9 @@
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
     <!-- 
-      FIXED ImportMap:
-      1. All dependencies use esm.sh.
-      2. Mapped "three/examples/jsm/" specifically to handle sub-modules.
-      3. Removed conflicting React 19 versions.
+      FIXED ImportMap for Stability on GitHub Pages:
+      1. Strictly use 'esm.sh' for all modules to avoid version conflicts.
+      2. Removed all 'aistudiocdn' entries to prevent React 18 vs 19 mismatch.
     -->
     <script type="importmap">
 {
@@ -169,10 +172,8 @@
     <div id="root"></div>
     
     <!-- 
-      CRITICAL for GitHub Pages Static Deployment:
-      1. type="text/babel": Tells Babel to compile this.
-      2. data-type="module": Tells Babel to treat imports as ES Modules.
-      3. data-presets="react,typescript": Enables React and TS syntax.
+      Compile and run the React App:
+      type="text/babel" and data-type="module" are required for in-browser transpilation.
     -->
     <script 
       type="text/babel" 
