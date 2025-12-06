@@ -9,8 +9,7 @@ import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPa
 import { FilesetResolver, HandLandmarker } from '@mediapipe/tasks-vision';
 
 // --- Configuration & Constants ---
-const isMobile = window.innerWidth < 1024; // Treat tablets as mobile-ish for performance
-// Optimized counts for high FPS on mobile
+const isMobile = window.innerWidth < 1024; 
 const ORNAMENT_COUNT = isMobile ? 320 : 650; 
 const STARDUST_COUNT = isMobile ? 800 : 2200;
 const SNOW_COUNT = isMobile ? 180 : 500;
@@ -24,7 +23,6 @@ const COLORS = {
 };
 
 // --- Texture Generators (Cached) ---
-
 const createSoftGradientTexture = (colorA: string, colorB: string) => {
   const size = 128;
   const canvas = document.createElement('canvas');
@@ -33,9 +31,8 @@ const createSoftGradientTexture = (colorA: string, colorB: string) => {
   const ctx = canvas.getContext('2d');
   if (!ctx) return new THREE.Texture();
 
-  // Smoother gradient with easing and pearlescent hint
   const grad = ctx.createRadialGradient(size/2, size/2, 0, size/2, size/2, size/2);
-  grad.addColorStop(0, '#ffffff'); // Center highlight
+  grad.addColorStop(0, '#ffffff'); 
   grad.addColorStop(0.3, colorA);
   grad.addColorStop(0.8, colorB);
   grad.addColorStop(1, colorB);
@@ -77,10 +74,10 @@ const createStripeTexture = () => {
   const ctx = canvas.getContext('2d');
   if (!ctx) return new THREE.Texture();
 
-  ctx.fillStyle = '#FFF0F5'; // Lavender Blush
+  ctx.fillStyle = '#FFF0F5'; 
   ctx.fillRect(0, 0, size, size);
 
-  ctx.fillStyle = '#FFB7C5'; // Pink
+  ctx.fillStyle = '#FFB7C5'; 
   const stripeCount = 4;
   const stripeWidth = size / stripeCount;
   
@@ -132,7 +129,6 @@ type InstanceData = {
   currentScale: number;
   rotationSpeed: THREE.Vector3;
   phase: number;
-  // Physics Sim
   velocity: THREE.Vector3;
 };
 
@@ -177,7 +173,6 @@ const App = () => {
   const visualHandPosRef = useRef<{x: number, y: number}>({ x: 0, y: 0 });
   const lastDetectionTimeRef = useRef<number>(0);
   
-  // 3D Space Hand Position for Collision
   const handWorldPosRef = useRef<THREE.Vector3>(new THREE.Vector3(0, -1000, 0));
 
   const panRef = useRef<{x: number, y: number}>({ x: 0, y: 0 });
@@ -189,12 +184,10 @@ const App = () => {
   const gestureHistoryRef = useRef<string[]>([]);
   const lastGestureTimeRef = useRef<number>(0);
 
-  // FPS Monitoring & Dynamic Quality
   const lastFrameTimeRef = useRef<number>(0);
-  const qualityLevelRef = useRef<number>(3); // 3=Ultra, 2=High, 1=Med, 0=Low
+  const qualityLevelRef = useRef<number>(3); 
   const lowFpsCountRef = useRef<number>(0);
 
-  // Materials Refs for dynamic updates
   const matRefs = useRef<THREE.MeshPhysicalMaterial[]>([]);
 
   // Monitor Fullscreen State
@@ -212,7 +205,7 @@ const App = () => {
     }
   };
 
-  // Init MediaPipe
+  // Init MediaPipe with numHands: 2 to detect holding hand
   useEffect(() => {
     const initVision = async () => {
       try {
@@ -225,7 +218,7 @@ const App = () => {
             delegate: "GPU"
           },
           runningMode: "VIDEO",
-          numHands: 1
+          numHands: 2 // Detect 2 hands to differentiate holding hand
         });
         setLoading(false);
       } catch (error: any) {
@@ -253,14 +246,13 @@ const App = () => {
         powerPreference: 'high-performance' 
     });
     renderer.setSize(window.innerWidth, window.innerHeight);
-    // Start at device capability, degrade if needed
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2)); 
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 1.2;
     mountRef.current.appendChild(renderer.domElement);
     rendererRef.current = renderer;
 
-    // Post Processing - Optimized Bloom
+    // Post Processing
     const renderScene = new RenderPass(scene, camera);
     const bloomRes = new THREE.Vector2(window.innerWidth / (isMobile?2:1), window.innerHeight / (isMobile?2:1));
     const bloomPass = new UnrealBloomPass(bloomRes, 1.5, 0.4, 0.85);
@@ -287,21 +279,21 @@ const App = () => {
     fillLight.position.set(-15, -10, 15);
     scene.add(fillLight);
 
-    // Materials - Enhanced Pearlescent / Iridescent
+    // Materials
     const pinkGradTexture = createSoftGradientTexture('#FFB7C5', '#FFF0F5');
     const goldGradTexture = createSoftGradientTexture('#FFE5B4', '#FFF8DC');
     const stripeTexture = createStripeTexture();
 
     const matPearl = new THREE.MeshPhysicalMaterial({ 
-      color: 0xffffff, // White base
+      color: 0xffffff,
       metalness: 0.1, 
       roughness: 0.2, 
       clearcoat: 1.0,
       clearcoatRoughness: 0.1,
-      sheen: 1.5, // Strong sheen
-      sheenColor: 0xffc1cc, // Pink sheen
-      iridescence: 1.0,     // Strong iridescent effect
-      iridescenceIOR: 1.33, // Water-like/Pearl-like refraction
+      sheen: 1.5, 
+      sheenColor: 0xffc1cc, 
+      iridescence: 1.0,     
+      iridescenceIOR: 1.33, 
       iridescenceThicknessRange: [100, 400]
     });
     
@@ -310,7 +302,7 @@ const App = () => {
       color: 0xffffff,
       roughness: 0.15,
       metalness: 0.1,
-      transmission: 0.92, // High glass-like transmission
+      transmission: 0.92,
       thickness: 1.5,
       clearcoat: 1.0,
       iridescence: 0.4,
@@ -349,7 +341,7 @@ const App = () => {
     matRefs.current = [matJellyPink, matGold, matPearl, matMint, matCandy];
 
     // Geometries
-    const geoSphere = new THREE.SphereGeometry(0.6, 12, 12); // Lower poly for mobile
+    const geoSphere = new THREE.SphereGeometry(0.6, 12, 12); 
     const geoBox = new THREE.BoxGeometry(0.85, 0.85, 0.85); 
     const geoTorus = new THREE.TorusGeometry(0.4, 0.22, 12, 18); 
 
@@ -403,7 +395,7 @@ const App = () => {
                     (Math.random()-0.5)*0.02, (Math.random()-0.5)*0.02, (Math.random()-0.5)*0.02
                 ),
                 phase: Math.random() * Math.PI * 2,
-                velocity: new THREE.Vector3(0,0,0) // Init velocity
+                velocity: new THREE.Vector3(0,0,0) 
             });
         }
     });
@@ -411,7 +403,7 @@ const App = () => {
     instancedMeshesRef.current = instancedMeshes;
     particlesDataRef.current = particlesData;
 
-    // Stardust with Flowing Animation capability
+    // Stardust
     const stardustGeo = new THREE.BufferGeometry();
     const stardustPos = new Float32Array(STARDUST_COUNT * 3);
     const stardustRandoms = new Float32Array(STARDUST_COUNT);
@@ -495,15 +487,11 @@ const App = () => {
     };
   }, []);
 
-  // Update Photos in Scene
+  // Photo updates logic...
   useEffect(() => {
     if (!sceneRef.current) return;
-    
-    // Clear old photos
     photoMeshesRef.current.forEach(m => sceneRef.current?.remove(m));
     photoMeshesRef.current = [];
-    
-    // Create new photos
     const photoGeo = new THREE.PlaneGeometry(5, 5); 
     userPhotos.forEach((url, i) => {
         const loader = new THREE.TextureLoader();
@@ -516,14 +504,9 @@ const App = () => {
                 opacity: 0.95
             });
             const mesh = new THREE.Mesh(photoGeo, mat);
-            
-            // Assign orbit params
             const orbit = getOrbitParams();
-            // Assign fixed tree pos
             const treePos = getTreePosition(i * 15 + 10, ORNAMENT_COUNT); 
-            // Make photos float slightly outside tree
             treePos.multiplyScalar(1.2); 
-
             mesh.userData = {
                 orbitRadius: orbit.radius,
                 orbitAngle: orbit.angle,
@@ -531,18 +514,16 @@ const App = () => {
                 orbitY: orbit.y,
                 treePos: treePos
             };
-            
             sceneRef.current?.add(mesh);
             photoMeshesRef.current.push(mesh);
         });
     });
   }, [userPhotos]);
   
-  // Interaction Logic
+  // Interaction Listeners...
   useEffect(() => {
     const handleMove = (x: number, y: number) => {
         if (!isDraggingRef.current) {
-            // Unproject mouse/touch to world space for collision
             if (cameraRef.current) {
                 const vec = new THREE.Vector3();
                 const pos = new THREE.Vector3();
@@ -551,7 +532,6 @@ const App = () => {
                 vec.sub(cameraRef.current.position).normalize();
                 const distance = -cameraRef.current.position.z / vec.z;
                 pos.copy(cameraRef.current.position).add(vec.multiplyScalar(distance));
-                // Clamp slightly to scene bounds
                 handWorldPosRef.current.copy(pos);
             }
             return;
@@ -604,7 +584,6 @@ const App = () => {
     const handleTouchEnd = () => { 
         isDraggingRef.current = false; 
         lastTouchDistanceRef.current = 0; 
-        // Reset hand world pos to prevent collision when not touching
         handWorldPosRef.current.set(0, -1000, 0);
     };
     const handleMouseDown = (e: MouseEvent) => {
@@ -640,7 +619,7 @@ const App = () => {
     };
   }, []);
 
-  // Main Loop
+  // Main Animation Loop
   const animate = useCallback(() => {
     if (!started || !cameraRef.current || !sceneRef.current) return;
 
@@ -649,7 +628,6 @@ const App = () => {
     const delta = now - lastFrameTimeRef.current;
     lastFrameTimeRef.current = now;
 
-    // Dynamic Quality Scaling
     if (delta > 20) {
         lowFpsCountRef.current++;
         if (lowFpsCountRef.current > 60 && qualityLevelRef.current > 0) { 
@@ -664,14 +642,11 @@ const App = () => {
         lowFpsCountRef.current = Math.max(0, lowFpsCountRef.current - 1);
     }
 
-    // Dynamic Material Updates (Breathing Iridescence)
     matRefs.current.forEach((mat, i) => {
         if (mat.iridescence !== undefined) {
-             // Subtle oscillation of iridescence
              mat.iridescence = 0.5 + Math.sin(time * 0.5 + i) * 0.2;
         }
         if (mat.transmission && mat.transmission > 0) {
-             // Subtle pulse of jelly materials
              mat.transmission = 0.85 + Math.sin(time * 2) * 0.1;
         }
     });
@@ -685,18 +660,77 @@ const App = () => {
           try {
             const results = handLandmarkerRef.current.detectForVideo(videoRef.current, now);
             if (results.landmarks && results.landmarks.length > 0) {
+              
+              // --- SMART HAND FILTERING (Left Hand holding phone vs Right Hand gesture) ---
+              let activeLandmarks = results.landmarks[0];
+              
+              if (results.landmarks.length > 1) {
+                  // Find hand closest to center (0.5, 0.5) and ignore bottom holding hand
+                  let minDist = 999;
+                  let bestIdx = 0;
+                  
+                  const validHands = results.landmarks.map((l, i) => ({ landmarks: l, idx: i, wrist: l[0] }))
+                                        .filter(h => h.wrist.y < 0.9); // Ignore if wrist is too low (holding phone)
+
+                  if (validHands.length > 0) {
+                      validHands.forEach(hand => {
+                          const distToCenter = Math.hypot(hand.wrist.x - 0.5, hand.wrist.y - 0.5);
+                          if (distToCenter < minDist) {
+                              minDist = distToCenter;
+                              bestIdx = hand.idx;
+                          }
+                      });
+                      activeLandmarks = results.landmarks[bestIdx];
+                  }
+                  // If all hands are at bottom, default to first (rare case)
+              }
+
               lastDetectionTimeRef.current = now;
-              const landmarks = results.landmarks[0];
+              const landmarks = activeLandmarks;
               const wrist = landmarks[0];
               const thumbTip = landmarks[4];
               const indexTip = landmarks[8];
+              const indexMCP = landmarks[5]; // Knuckle
+              const indexPIP = landmarks[6]; // Second joint (Better for curl detection)
+              const middleTip = landmarks[12];
+              const middlePIP = landmarks[10];
+              const ringTip = landmarks[16];
+              const ringPIP = landmarks[14];
+              const pinkyTip = landmarks[20];
+              const pinkyPIP = landmarks[18];
               
               targetHandPosRef.current = { x: (wrist.x - 0.5) * 2, y: (wrist.y - 0.5) * 2 };
               
-              const pinchDist = Math.hypot(thumbTip.x - indexTip.x, thumbTip.y - indexTip.y);
-              if (pinchDist < 0.05) currentFrameGesture = 'FOCUS';
-              else if (landmarks[8].y < landmarks[5].y && landmarks[12].y < landmarks[9].y && landmarks[16].y < landmarks[13].y) currentFrameGesture = 'FLOAT'; 
-              else currentFrameGesture = 'TREE';
+              // --- BONE DISTANCE GESTURE LOGIC ---
+              // Robust to rotation and tilt.
+              // Finger is curled if Distance(Tip, Wrist) < Distance(PIP, Wrist)
+              
+              const dist = (p1: any, p2: any) => Math.hypot(p1.x - p2.x, p1.y - p2.y);
+              
+              const isCurled = (tip: any, pip: any) => {
+                  // PIP distance is usually larger than Tip distance when curled
+                  // Tip distance is larger when extended
+                  return dist(tip, wrist) < dist(pip, wrist);
+              };
+
+              const indexCurled = isCurled(indexTip, indexPIP);
+              const middleCurled = isCurled(middleTip, middlePIP);
+              const ringCurled = isCurled(ringTip, ringPIP);
+              const pinkyCurled = isCurled(pinkyTip, pinkyPIP);
+              
+              const curledCount = [indexCurled, middleCurled, ringCurled, pinkyCurled].filter(Boolean).length;
+              const pinchDist = dist(thumbTip, indexTip);
+
+              // Pinch logic: Index and Thumb tip close
+              if (pinchDist < 0.08) { 
+                  currentFrameGesture = 'FOCUS';
+              } else if (curledCount >= 3) {
+                  // Fist: 3 or more fingers curled
+                  currentFrameGesture = 'TREE';
+              } else if (curledCount <= 1) {
+                  // Open: 0 or 1 finger curled
+                  currentFrameGesture = 'FLOAT';
+              }
             }
           } catch (err) {}
         }
@@ -734,6 +768,7 @@ const App = () => {
         }
     }
 
+    // Smooth Cursor & Camera update
     visualHandPosRef.current.x += (targetHandPosRef.current.x - visualHandPosRef.current.x) * 0.15;
     visualHandPosRef.current.y += (targetHandPosRef.current.y - visualHandPosRef.current.y) * 0.15;
     if (cursorRef.current) {
@@ -743,6 +778,7 @@ const App = () => {
         cursorRef.current.style.opacity = (now - lastDetectionTimeRef.current < 500) ? '1' : '0';
     }
 
+    // Animation updates...
     if (mainLightRef.current) mainLightRef.current.intensity = 1.5 + Math.sin(time * 1.5) * 0.4;
     
     if (starRef.current) {
@@ -750,7 +786,6 @@ const App = () => {
         starRef.current.position.lerp(new THREE.Vector3(0, stateRef.current === 'TREE' ? TREE_HEIGHT/2 + 2 : 8, 0), 0.05);
     }
     
-    // Dynamic Fog Logic - optimized blur background
     if (sceneRef.current && sceneRef.current.fog) {
         const fog = sceneRef.current.fog as THREE.FogExp2;
         const targetDensity = stateRef.current === 'FOCUS' ? 0.04 : 0.012;
@@ -781,7 +816,6 @@ const App = () => {
     }
 
     const dummy = new THREE.Object3D();
-    // Repulsion Logic (Physics Simulation)
     const repulsionRadius = 6.0;
     const repulsionStrength = 0.5;
     const handPos = handWorldPosRef.current;
@@ -799,7 +833,6 @@ const App = () => {
             p.currentScale = 0.8 + Math.sin(time * 2 + p.phase) * 0.2;
         }
         
-        // --- Particle Interaction / Collision ---
         if (isHandActive && qualityLevelRef.current > 1) {
              const dist = p.currentPos.distanceTo(handPos);
              if (dist < repulsionRadius) {
@@ -808,12 +841,7 @@ const App = () => {
                  p.velocity.add(dir.multiplyScalar(force));
              }
         }
-        // Damping velocity
         p.velocity.multiplyScalar(0.9);
-        // Apply velocity to position temporarily for interaction effect
-        const interactionPos = p.currentPos.clone().add(p.velocity);
-
-        // Smoothly lerp towards target position (spring effect)
         p.currentPos.lerp(target, 0.05).add(p.velocity);
         
         p.currentRot.x += p.rotationSpeed.x;
@@ -886,14 +914,18 @@ const App = () => {
       return;
     }
     
-    if (wantFullScreen) {
-        try {
-            if (document.documentElement.requestFullscreen) {
-                await document.documentElement.requestFullscreen();
-            }
-        } catch(e) { console.log('Fullscreen refused', e); }
+    // 1. Play Audio Immediately
+    if (audioRef.current) {
+        audioRef.current.volume = 0.5;
+        audioRef.current.play().then(() => setIsPlaying(true)).catch(e => console.warn("Audio autoplay blocked", e));
     }
 
+    // 2. Fullscreen (Non-blocking)
+    if (wantFullScreen && document.documentElement.requestFullscreen) {
+        document.documentElement.requestFullscreen().catch(() => {});
+    }
+
+    // 3. Request Camera
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ 
           video: { facingMode: "user", width: { ideal: 640 }, height: { ideal: 480 } } 
