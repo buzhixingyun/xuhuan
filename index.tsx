@@ -8,7 +8,7 @@ import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPa
 import { FilesetResolver, HandLandmarker } from '@mediapipe/tasks-vision';
 
 // --- Configuration & Constants ---
-const ORNAMENT_COUNT = 500;
+const ORNAMENT_COUNT = 550; // Increased count slightly
 const TREE_HEIGHT = 28;
 const TREE_BASE_RADIUS = 12;
 const COLORS = {
@@ -47,6 +47,67 @@ const getFloatPosition = () => {
   );
 };
 
+// --- Procedural Texture Generators ---
+
+const createNoiseTexture = (intensity = 1.0) => {
+  const size = 256;
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return new THREE.Texture();
+  
+  const imageData = ctx.createImageData(size, size);
+  const data = imageData.data;
+  
+  for (let i = 0; i < data.length; i += 4) {
+    const val = Math.random() * 255 * intensity;
+    data[i] = val;     // r
+    data[i + 1] = val; // g
+    data[i + 2] = val; // b
+    data[i + 3] = 255; // alpha
+  }
+  
+  ctx.putImageData(imageData, 0, 0);
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.wrapS = THREE.RepeatWrapping;
+  texture.wrapT = THREE.RepeatWrapping;
+  return texture;
+};
+
+const createStripeTexture = () => {
+  const size = 512;
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return new THREE.Texture();
+
+  // White background
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, size, size);
+
+  // Red stripes
+  ctx.fillStyle = '#C41E3A';
+  const stripeCount = 8;
+  const stripeWidth = size / stripeCount;
+  
+  // Diagonal rotation
+  ctx.translate(size/2, size/2);
+  ctx.rotate(Math.PI / 4);
+  ctx.translate(-size, -size);
+
+  for(let i = 0; i < stripeCount * 3; i++) {
+     ctx.fillRect(i * stripeWidth * 2, -size, stripeWidth, size * 4);
+  }
+
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.wrapS = THREE.RepeatWrapping;
+  texture.wrapT = THREE.RepeatWrapping;
+  texture.colorSpace = THREE.SRGBColorSpace;
+  return texture;
+};
+
 // --- Components ---
 
 const App = () => {
@@ -78,7 +139,6 @@ const App = () => {
   
   // Gesture Smoothing (Debounce)
   const gestureHistoryRef = useRef<string[]>([]);
-  // Reduced debounce limit for snappier response, relies on better detection logic
   const GESTURE_HISTORY_LIMIT = 5; 
 
   // Initialize MediaPipe
@@ -161,24 +221,56 @@ const App = () => {
     spotLight.castShadow = true;
     scene.add(spotLight);
 
-    // --- Geometry Construction ---
-
-    // 1. Main Particles (Ornaments)
-    const geometrySphere = new THREE.SphereGeometry(0.6, 16, 16);
-    const geometryBox = new THREE.BoxGeometry(0.9, 0.9, 0.9);
+    // --- Materials & Textures ---
     
+    const noiseTexture = createNoiseTexture(1.0);
+    const lightNoiseTexture = createNoiseTexture(0.3);
+    const stripeTexture = createStripeTexture();
+    
+    // Gold: Roughness map makes it look like old foil/metal
     const materialGold = new THREE.MeshStandardMaterial({ 
-      color: COLORS.GOLD, metalness: 1.0, roughness: 0.1, emissive: 0x332200 
+      color: COLORS.GOLD, 
+      metalness: 1.0, 
+      roughness: 0.4, 
+      roughnessMap: noiseTexture,
+      emissive: 0x332200 
     });
+
+    // Red: Slight bump map for "glitter" or matte finish
     const materialRed = new THREE.MeshStandardMaterial({ 
-      color: COLORS.RED, metalness: 0.7, roughness: 0.2, emissive: 0x220000 
+      color: COLORS.RED, 
+      metalness: 0.6, 
+      roughness: 0.3, 
+      bumpMap: lightNoiseTexture,
+      bumpScale: 0.01,
+      emissive: 0x220000 
     });
+
+    // Green: Shiny but textured
     const materialGreen = new THREE.MeshStandardMaterial({ 
-      color: COLORS.GREEN, metalness: 0.4, roughness: 0.8 
+      color: COLORS.GREEN, 
+      metalness: 0.4, 
+      roughness: 0.7,
+      bumpMap: lightNoiseTexture,
+      bumpScale: 0.02
     });
+
     const materialWhite = new THREE.MeshStandardMaterial({
         color: COLORS.WARM_WHITE, metalness: 0.1, roughness: 0.1, emissive: 0x555555
     });
+
+    // Candy Cane Material
+    const materialCandy = new THREE.MeshStandardMaterial({
+        map: stripeTexture,
+        roughness: 0.3,
+        metalness: 0.1
+    });
+
+    // --- Geometry Construction ---
+
+    const geometrySphere = new THREE.SphereGeometry(0.6, 24, 24); // Higher detail for bump maps
+    const geometryBox = new THREE.BoxGeometry(0.8, 0.8, 0.8);
+    const geometryCandyCane = new THREE.CylinderGeometry(0.15, 0.15, 1.5, 8); // Candy sticks
 
     const particles: any[] = [];
 
@@ -186,13 +278,16 @@ const App = () => {
       const rand = Math.random();
       let geo, mat;
 
-      if (rand < 0.1) {
+      if (rand < 0.05) {
+          geo = geometryCandyCane;
+          mat = materialCandy;
+      } else if (rand < 0.15) {
           geo = geometryBox; // Presents
           mat = materialRed;
       } else if (rand < 0.4) {
           geo = geometrySphere;
           mat = materialGold;
-      } else if (rand < 0.6) {
+      } else if (rand < 0.65) {
           geo = geometrySphere;
           mat = materialRed;
       } else if (rand < 0.95) {
@@ -210,8 +305,9 @@ const App = () => {
 
       mesh.position.copy(treePos);
       
-      // Random rotation and scale variation
+      // Random rotation
       mesh.rotation.set(Math.random() * Math.PI, Math.random() * Math.PI, 0);
+      
       const scale = 0.5 + Math.random() * 0.8;
       mesh.scale.set(scale, scale, scale);
 
@@ -281,7 +377,9 @@ const App = () => {
         
         // Add a gold border frame
         const frameGeo = new THREE.PlaneGeometry(4 * aspect + 0.2, 4 + 0.2);
-        const frameMat = new THREE.MeshStandardMaterial({ color: COLORS.GOLD, metalness: 1.0, roughness: 0.2 });
+        // Reuse gold material but maybe clone it to avoid texture mapping issues on plain geometry if needed
+        // For simple frame, standard material is fine
+        const frameMat = new THREE.MeshStandardMaterial({ color: COLORS.GOLD, metalness: 1.0, roughness: 0.3 });
         const frameMesh = new THREE.Mesh(frameGeo, frameMat);
         frameMesh.position.z = -0.05; // Slightly behind photo
         
