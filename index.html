@@ -1,16 +1,17 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh-CN">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Gesture Controlled Christmas Tree</title>
+    <title>手势控制圣诞树</title>
     <style>
       body {
         margin: 0;
         padding: 0;
         background-color: #000;
         overflow: hidden;
-        font-family: 'Cinzel', 'Georgia', serif;
+        /* Add Chinese fonts fallback */
+        font-family: 'Cinzel', 'PingFang SC', 'Microsoft YaHei', 'Helvetica Neue', 'Georgia', serif;
         color: #d4af37;
         user-select: none;
       }
@@ -49,7 +50,7 @@
         margin: 0 0 12px 0;
         font-weight: 400;
         text-shadow: 0 0 15px rgba(212, 175, 55, 0.6);
-        letter-spacing: 3px;
+        letter-spacing: 2px;
         font-size: 1.8rem;
         border-bottom: 1px solid rgba(212, 175, 55, 0.3);
         padding-bottom: 10px;
@@ -83,6 +84,7 @@
         letter-spacing: 2px;
         transition: all 0.3s ease;
         box-shadow: 0 4px 15px rgba(138, 3, 3, 0.4);
+        font-family: inherit;
       }
       .btn:hover {
         transform: translateY(-2px);
@@ -142,7 +144,7 @@
         border: 1px solid rgba(212,175,55,0.3);
       }
     </style>
-    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Lato:wght@300;400&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&display=swap" rel="stylesheet">
     
     <!-- Babel for compiling TSX in the browser -->
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -150,7 +152,7 @@
     <!-- 
       FIXED ImportMap for Stability on GitHub Pages:
       1. Strictly use 'esm.sh' for all modules to avoid version conflicts.
-      2. Removed all 'aistudiocdn' entries to prevent React 18 vs 19 mismatch.
+      2. CLEANED: Removed conflicting aistudiocdn entries.
     -->
     <script type="importmap">
 {
