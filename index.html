@@ -3,7 +3,6 @@
 <html lang="zh-CN">
   <head>
     <meta charset="UTF-8" />
-    <!-- Mobile Optimized Viewport: No zoom, cover notch area -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="theme-color" content="#1a0b12">
@@ -19,8 +18,8 @@
         font-family: 'Quicksand', 'PingFang SC', 'Microsoft YaHei', sans-serif;
         color: #ffdde1;
         user-select: none;
-        -webkit-user-select: none; /* iOS Safari */
-        -webkit-tap-highlight-color: transparent; /* Remove click highlight on mobile */
+        -webkit-user-select: none;
+        -webkit-tap-highlight-color: transparent;
       }
       #root {
         width: 100vw;
@@ -29,7 +28,7 @@
         background: radial-gradient(circle at center, #3a2232 0%, #150810 100%);
       }
 
-      /* --- UI Layout Containers --- */
+      /* UI Layout */
       #ui-layer {
         position: absolute;
         top: 0;
@@ -42,14 +41,14 @@
         flex-direction: column;
       }
 
-      /* 1. Landing Page Styles (Refined Glassmorphism) */
+      /* Landing Page */
       .landing-overlay {
         width: 100%;
         height: 100%;
         display: flex;
         justify-content: center;
         align-items: center;
-        background: rgba(20, 10, 15, 0.3); /* Softer backdrop */
+        background: rgba(20, 10, 15, 0.3);
         backdrop-filter: blur(8px);
         -webkit-backdrop-filter: blur(8px);
         transition: opacity 0.8s ease;
@@ -59,30 +58,25 @@
 
       .landing-card {
         pointer-events: auto;
-        /* Premium Glass Effect */
         background: rgba(60, 30, 45, 0.6);
         border: 1px solid rgba(255, 183, 197, 0.3);
         box-shadow: 0 16px 40px rgba(0, 0, 0, 0.4), inset 0 0 20px rgba(255, 183, 197, 0.1);
         backdrop-filter: blur(20px);
         -webkit-backdrop-filter: blur(20px);
-        
         padding: 32px 24px;
         border-radius: 32px;
         text-align: center;
         width: 100%;
-        max-width: 380px; /* Optimal mobile width */
+        max-width: 380px;
         max-height: 85vh;
         overflow-y: auto;
-        
         display: flex;
         flex-direction: column;
         align-items: center;
         gap: 20px;
-        
         animation: float-card 6s ease-in-out infinite;
       }
 
-      /* Landscape Mode Optimization */
       @media (max-height: 500px) and (orientation: landscape) {
         .landing-card {
           flex-direction: row;
@@ -99,7 +93,7 @@
         .btn { width: 45%; margin-top: 0; }
       }
 
-      /* 2. HUD Styles (Thumb Friendly) */
+      /* HUD */
       .hud-overlay {
         width: 100%;
         height: 100%;
@@ -111,7 +105,6 @@
         padding-bottom: calc(20px + env(safe-area-inset-bottom));
       }
 
-      /* Bottom Center Status Bar - Capsule Style */
       .status-bar {
         pointer-events: auto;
         background: rgba(30, 15, 20, 0.6);
@@ -145,7 +138,6 @@
         font-weight: 500;
       }
 
-      /* Music Player - Floating Bottom Right - Vinyl Style */
       .music-player {
         pointer-events: auto;
         position: absolute;
@@ -168,10 +160,7 @@
         overflow: hidden;
       }
       
-      .music-player:active {
-        transform: scale(0.9);
-      }
-      
+      .music-player:active { transform: scale(0.9); }
       .music-player.playing {
         border-color: rgba(255, 183, 197, 0.8);
         box-shadow: 0 0 25px rgba(255, 183, 197, 0.4);
@@ -184,9 +173,7 @@
         animation-play-state: paused;
         filter: drop-shadow(0 0 2px rgba(255,255,255,0.6));
       }
-      .music-player.playing .music-icon {
-        animation-play-state: running;
-      }
+      .music-player.playing .music-icon { animation-play-state: running; }
 
       .exit-fullscreen-btn {
         pointer-events: auto;
@@ -209,11 +196,8 @@
         z-index: 50;
         transition: background 0.2s;
       }
-      .exit-fullscreen-btn:active {
-        background: rgba(255, 255, 255, 0.3);
-      }
+      .exit-fullscreen-btn:active { background: rgba(255, 255, 255, 0.3); }
 
-      /* --- Typography & Elements --- */
       h1 {
         margin: 0;
         font-family: 'Pacifico', cursive;
@@ -235,7 +219,6 @@
         opacity: 0.95;
       }
 
-      /* --- Buttons (Touch Friendly) --- */
       .btn {
         background: linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%);
         border: none;
@@ -263,7 +246,6 @@
         box-shadow: 0 4px 15px rgba(255, 154, 158, 0.3);
       }
 
-      /* --- File Upload (Touch Friendly) --- */
       .file-upload-container {
         display: flex;
         flex-direction: column;
@@ -287,9 +269,7 @@
         cursor: pointer;
         transition: background 0.2s;
       }
-      .file-upload-label:active {
-        background: rgba(255, 255, 255, 0.1);
-      }
+      .file-upload-label:active { background: rgba(255, 255, 255, 0.1); }
       
       .photo-count {
         font-size: 0.85rem;
@@ -300,7 +280,6 @@
 
       input[type="file"] { display: none; }
 
-      /* --- Checkbox for Camera Privacy --- */
       .checkbox-container {
           display: flex;
           align-items: center;
@@ -309,9 +288,7 @@
           user-select: none;
           padding: 8px;
       }
-      .checkbox-container input {
-          display: none;
-      }
+      .checkbox-container input { display: none; }
       .checkmark {
           width: 20px;
           height: 20px;
@@ -336,16 +313,9 @@
           border-width: 0 2px 2px 0;
           transform: rotate(45deg);
       }
-      .checkbox-container input:checked ~ .checkmark:after {
-          display: block;
-      }
-      .checkbox-text {
-          font-size: 0.9rem;
-          color: #ffe6eb;
-          opacity: 0.9;
-      }
+      .checkbox-container input:checked ~ .checkmark:after { display: block; }
+      .checkbox-text { font-size: 0.9rem; color: #ffe6eb; opacity: 0.9; }
       
-      /* --- Webcam Preview --- */
       #webcam-preview {
         position: absolute;
         top: 20px; 
@@ -364,7 +334,6 @@
       #webcam-preview.active { display: block; }
       #webcam-preview.hidden { display: none !important; }
 
-      /* Hand cursor */
       #hand-cursor {
         position: absolute;
         top: 0; left: 0;
@@ -381,24 +350,14 @@
         filter: drop-shadow(0 0 10px rgba(255, 255, 255, 0.8));
       }
 
-      /* --- Animations --- */
       @keyframes float-card {
         0%, 100% { transform: translateY(0px); }
         50% { transform: translateY(-10px); }
       }
       @keyframes spin { 100% { transform: rotate(360deg); } }
     </style>
-    <!-- Cute fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Pacifico&family=Quicksand:wght@500;700&display=swap" rel="stylesheet">
-    
-    <!-- Babel for compiling TSX in the browser -->
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-
-    <!-- 
-      FIXED ImportMap:
-      Strictly using esm.sh for React 18.2.0 and Three.js 0.160.0.
-      CRITICAL: Conflicting versions REMOVED for mobile stability.
-    -->
     <script type="importmap">
 {
   "imports": {
