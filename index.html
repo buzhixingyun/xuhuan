@@ -184,8 +184,9 @@
 
     <!-- 
       FIXED ImportMap:
-      Strictly using esm.sh to avoid React 18/19 conflicts.
-      Removed all aistudiocdn entries to prevent crashes.
+      1. Using esm.sh for React and Three.js (reliable).
+      2. Using jsdelivr for MediaPipe to match the WASM source location (prevents fetch errors).
+      3. CRITICAL: Removed all aistudiocdn entries to stop React version conflicts.
     -->
     <script type="importmap">
 {
@@ -195,7 +196,7 @@
     "react-dom/client": "https://esm.sh/react-dom@18.2.0/client",
     "three": "https://esm.sh/three@0.160.0",
     "three/examples/jsm/": "https://esm.sh/three@0.160.0/examples/jsm/",
-    "@mediapipe/tasks-vision": "https://esm.sh/@mediapipe/tasks-vision@0.10.8",
+    "@mediapipe/tasks-vision": "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.8/+esm",
     "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.1/",
     "three/": "https://aistudiocdn.com/three@^0.181.2/",
     "react/": "https://aistudiocdn.com/react@^19.2.1/"
