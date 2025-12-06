@@ -78,7 +78,8 @@ const App = () => {
   
   // Gesture Smoothing (Debounce)
   const gestureHistoryRef = useRef<string[]>([]);
-  const GESTURE_HISTORY_LIMIT = 8; // Number of frames to confirm a gesture change
+  // Reduced debounce limit for snappier response, relies on better detection logic
+  const GESTURE_HISTORY_LIMIT = 5; 
 
   // Initialize MediaPipe
   useEffect(() => {
@@ -96,9 +97,9 @@ const App = () => {
           numHands: 1
         });
         setLoading(false);
-      } catch (error) {
+      } catch (error: any) {
         console.error("Failed to load MediaPipe:", error);
-        alert("AI 模型加载失败，请检查您的网络连接。");
+        alert(`AI 模型加载失败: ${error.message}\n请检查网络连接 (可能需要访问 Google 服务)`);
       }
     };
     initVision();
@@ -342,35 +343,57 @@ const App = () => {
         if (results.landmarks && results.landmarks.length > 0) {
           const landmarks = results.landmarks[0];
           const wrist = landmarks[0];
+          
+          // Thumb: 1, 2, 3, 4
           const thumbTip = landmarks[4];
+          const thumbIP = landmarks[3];
+          
+          // Index: 5, 6, 7, 8
           const indexTip = landmarks[8];
           
-          // Calculate average open-ness of fingers
-          const fingerTips = [8, 12, 16, 20];
-          const fingerBases = [5, 9, 13, 17];
-          let openCount = 0;
-          
-          for(let i=0; i<4; i++) {
-              // Simple check: is tip further from wrist than base?
-              const tip = landmarks[fingerTips[i]];
-              const base = landmarks[fingerBases[i]];
-              const distTip = Math.hypot(tip.x - wrist.x, tip.y - wrist.y);
-              const distBase = Math.hypot(base.x - wrist.x, base.y - wrist.y);
-              if (distTip > distBase * 1.2) openCount++;
-          }
-
-          // Pinch logic (Thumb tip close to Index tip)
-          const pinchDist = Math.hypot(thumbTip.x - indexTip.x, thumbTip.y - indexTip.y);
-
           // Map Hand Position
           handPos.x = (wrist.x - 0.5) * 2;
           handPos.y = (wrist.y - 0.5) * 2;
 
-          if (pinchDist < 0.04) {
+          // --- Improved Gesture Detection ---
+          
+          // Check openness of 4 fingers (Index, Middle, Ring, Pinky)
+          // Compare Tip distance to wrist vs PIP (joint 2) distance to wrist
+          // If Tip is further, it's open. If Tip is closer, it's curled.
+          const fingerTips = [8, 12, 16, 20];
+          const fingerPIPs = [6, 10, 14, 18]; // Joints: 5-8, 9-12... 6 is PIP
+          let openCount = 0;
+          
+          for(let i=0; i<4; i++) {
+              const tip = landmarks[fingerTips[i]];
+              const pip = landmarks[fingerPIPs[i]];
+              
+              const distTip = Math.hypot(tip.x - wrist.x, tip.y - wrist.y);
+              const distPip = Math.hypot(pip.x - wrist.x, pip.y - wrist.y);
+              
+              // 1.1 multiplier provides a small buffer
+              if (distTip > distPip * 1.1) {
+                  openCount++;
+              }
+          }
+          
+          // Check Thumb
+          // Thumb is open if tip is far from Index MCP (5)
+          const indexMCP = landmarks[5];
+          const thumbDistToIndex = Math.hypot(thumbTip.x - indexMCP.x, thumbTip.y - indexMCP.y);
+          if (thumbDistToIndex > 0.15) openCount++; // Rough heuristic for thumb
+
+          // Pinch logic (Thumb tip close to Index tip)
+          const pinchDist = Math.hypot(thumbTip.x - indexTip.x, thumbTip.y - indexTip.y);
+
+          // Priority Logic
+          if (pinchDist < 0.05) {
             currentFrameGesture = 'FOCUS';
-          } else if (openCount <= 1) { // Fist (0 or 1 finger open)
+          } else if (openCount <= 1) { 
+            // Fist: 0 or 1 finger open (sometimes thumb is tricky)
             currentFrameGesture = 'TREE';
-          } else if (openCount >= 3) { // Open Hand
+          } else if (openCount >= 3) { 
+            // Open: 3 or more fingers open
             currentFrameGesture = 'FLOAT';
             handRotationRef.current = { x: handPos.x, y: handPos.y };
           }
@@ -383,9 +406,7 @@ const App = () => {
     // Debounce Logic
     if (currentFrameGesture) {
         gestureHistoryRef.current.push(currentFrameGesture);
-    } else {
-        // Optionally drift back to TREE if nothing detected for a long time
-    }
+    } 
     
     if (gestureHistoryRef.current.length > GESTURE_HISTORY_LIMIT) {
         gestureHistoryRef.current.shift();
@@ -398,9 +419,11 @@ const App = () => {
     });
 
     let detectedState: 'TREE' | 'FLOAT' | 'FOCUS' | null = null;
-    if (counts.FOCUS > GESTURE_HISTORY_LIMIT * 0.6) detectedState = 'FOCUS';
-    else if (counts.TREE > GESTURE_HISTORY_LIMIT * 0.6) detectedState = 'TREE';
-    else if (counts.FLOAT > GESTURE_HISTORY_LIMIT * 0.6) detectedState = 'FLOAT';
+    const threshold = Math.ceil(GESTURE_HISTORY_LIMIT * 0.6); // Majority vote
+
+    if (counts.FOCUS >= threshold) detectedState = 'FOCUS';
+    else if (counts.TREE >= threshold) detectedState = 'TREE';
+    else if (counts.FLOAT >= threshold) detectedState = 'FLOAT';
 
     // Update UI text
     if (detectedState === 'TREE') setGesture('✊ 握拳 (聚合圣诞树)');
@@ -621,7 +644,7 @@ const App = () => {
                  <label className="file-upload-label">
                    {/* Added 'multiple' attribute for batch selection */}
                    <input type="file" ref={fileInputRef} onChange={handleFileUpload} accept="image/*" multiple />
-                   + 添加照片
+                   + 添加照片 (可多选)
                  </label>
                  {userPhotos.length > 0 && (
                      <button className="clear-btn" onClick={handleClearPhotos}>清空</button>
