@@ -3,23 +3,26 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>手势控制圣诞树</title>
+    <title>浪漫圣诞 | Romantic Christmas</title>
     <style>
       body {
         margin: 0;
         padding: 0;
-        background-color: #000;
+        background-color: #1a0b12; /* Very dark warm purple/brown */
         overflow: hidden;
-        /* Add Chinese fonts fallback */
-        font-family: 'Cinzel', 'PingFang SC', 'Microsoft YaHei', 'Helvetica Neue', 'Georgia', serif;
-        color: #d4af37;
+        /* Cute/Soft fonts */
+        font-family: 'Quicksand', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+        color: #ffdde1;
         user-select: none;
       }
       #root {
         width: 100vw;
         height: 100vh;
         position: relative;
+        background: radial-gradient(circle at center, #2e1c2b 0%, #1a0b12 100%);
       }
+
+      /* --- UI Layout Containers --- */
       #ui-layer {
         position: absolute;
         top: 0;
@@ -27,165 +30,287 @@
         width: 100%;
         height: 100%;
         pointer-events: none;
+        z-index: 10;
+      }
+
+      /* 1. Landing Page Styles (Centered) */
+      .landing-overlay {
+        width: 100%;
+        height: 100%;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        background: rgba(46, 28, 43, 0.4); /* Slight dim */
+        backdrop-filter: blur(5px);
+        transition: opacity 0.8s ease;
+      }
+
+      .landing-card {
+        pointer-events: auto;
+        background: rgba(255, 240, 245, 0.25); /* More opaque for landing */
+        border: 3px solid rgba(255, 192, 203, 0.4);
+        padding: 40px;
+        border-radius: 30px;
+        text-align: center;
+        box-shadow: 0 20px 50px rgba(0, 0, 0, 0.3), 
+                    0 0 30px rgba(255, 183, 197, 0.2);
+        max-width: 420px;
+        width: 90%;
+        animation: float-card 6s ease-in-out infinite;
+        position: relative;
+        overflow: hidden;
+      }
+
+      /* Decorative sparkles */
+      .landing-card::before {
+        content: '✨';
+        position: absolute;
+        top: 15px;
+        left: 20px;
+        font-size: 24px;
+        animation: twinkle 3s infinite;
+      }
+      .landing-card::after {
+        content: '🌸';
+        position: absolute;
+        bottom: 15px;
+        right: 20px;
+        font-size: 24px;
+        animation: float-cursor 4s infinite;
+      }
+
+      /* 2. HUD Styles (Side Panel) */
+      .hud-overlay {
+        width: 100%;
+        height: 100%;
         display: flex;
         flex-direction: column;
-        justify-content: space-between;
+        justify-content: flex-start;
         padding: 24px;
         box-sizing: border-box;
-        z-index: 10;
-        background: radial-gradient(circle at center, transparent 0%, rgba(0,10,0,0.4) 100%);
       }
-      .controls {
+
+      .controls-hud {
         pointer-events: auto;
-        background: rgba(12, 20, 15, 0.85);
-        border: 1px solid rgba(212, 175, 55, 0.3);
-        padding: 24px;
-        border-radius: 12px;
+        background: rgba(255, 240, 245, 0.15);
+        border: 2px solid rgba(255, 183, 197, 0.3);
+        padding: 20px;
+        border-radius: 20px;
         backdrop-filter: blur(10px);
-        max-width: 340px;
-        box-shadow: 0 4px 30px rgba(0, 0, 0, 0.5), 0 0 20px rgba(212, 175, 55, 0.1);
-        transition: opacity 0.5s;
-        max-height: 80vh;
-        overflow-y: auto;
+        max-width: 280px;
+        animation: slide-in 0.5s ease-out;
       }
+
+      /* --- Typography & Elements --- */
       h1 {
-        margin: 0 0 12px 0;
+        margin: 0 0 10px 0;
+        font-family: 'Pacifico', cursive;
         font-weight: 400;
-        text-shadow: 0 0 15px rgba(212, 175, 55, 0.6);
-        letter-spacing: 2px;
-        font-size: 1.8rem;
-        border-bottom: 1px solid rgba(212, 175, 55, 0.3);
-        padding-bottom: 10px;
+        font-size: 2.8rem;
+        background: linear-gradient(135deg, #fff0f5 0%, #ffb7c5 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        filter: drop-shadow(0 2px 4px rgba(255,105,180,0.3));
+        line-height: 1.2;
       }
+      .controls-hud h1 {
+        font-size: 1.8rem; /* Smaller in HUD */
+      }
+
+      .subtitle {
+        font-size: 1.1rem;
+        color: #ffe6eb;
+        margin-bottom: 30px;
+        font-weight: 500;
+        letter-spacing: 1px;
+      }
+
       p, li {
         font-size: 0.95rem;
         line-height: 1.6;
-        color: #e0e6e1;
+        color: #ffe6eb;
+        font-weight: 500;
       }
       ul {
         padding-left: 20px;
-        margin: 10px 0;
+        list-style-type: '🌸 ';
+        text-align: left;
+        margin-top: 10px;
       }
-      li {
-        margin-bottom: 6px;
-      }
-      strong {
-        color: #d4af37;
-      }
+      strong { color: #ffb7c5; }
+
+      /* --- Buttons --- */
       .btn {
-        background: linear-gradient(135deg, #8a0303, #b01b2e);
-        border: 1px solid #ff4d4d;
-        color: white;
-        padding: 12px 24px;
-        font-size: 1rem;
+        background: linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%);
+        border: none;
+        color: #5e3a45;
+        padding: 16px 32px;
+        font-size: 1.2rem;
+        font-weight: 700;
         cursor: pointer;
-        border-radius: 6px;
-        margin-top: 15px;
+        border-radius: 50px;
+        margin-top: 10px;
         width: 100%;
-        text-transform: uppercase;
         letter-spacing: 2px;
-        transition: all 0.3s ease;
-        box-shadow: 0 4px 15px rgba(138, 3, 3, 0.4);
-        font-family: inherit;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        font-family: 'Quicksand', sans-serif;
+        box-shadow: 0 6px 20px rgba(255, 154, 158, 0.4);
+        position: relative;
+        overflow: hidden;
       }
       .btn:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 6px 20px rgba(255, 0, 0, 0.5);
-        background: linear-gradient(135deg, #a00404, #c92035);
+        transform: translateY(-3px) scale(1.02);
+        box-shadow: 0 10px 25px rgba(255, 154, 158, 0.6);
       }
-      /* Pulse animation for the start button when photos are added */
-      @keyframes pulse-gold {
-        0% { box-shadow: 0 0 0 0 rgba(212, 175, 55, 0.4); }
-        70% { box-shadow: 0 0 0 10px rgba(212, 175, 55, 0); }
-        100% { box-shadow: 0 0 0 0 rgba(212, 175, 55, 0); }
+      .btn::after {
+        content: '';
+        position: absolute;
+        top: 0; left: -100%;
+        width: 100%; height: 100%;
+        background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
+        transition: 0.5s;
       }
-      .btn.highlight {
-        animation: pulse-gold 2s infinite;
-        border-color: #ffd700;
+      .btn:hover::after {
+        left: 100%;
       }
       
+      .btn.highlight {
+        animation: pulse-pink 2s infinite;
+      }
+
+      /* --- File Upload --- */
+      .file-upload-container {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        margin-bottom: 20px;
+        width: 100%;
+      }
+      
+      .file-upload-label {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 15px;
+        border: 2px dashed rgba(255, 183, 197, 0.6);
+        border-radius: 20px;
+        cursor: pointer;
+        color: #fff;
+        font-size: 1rem;
+        font-weight: 600;
+        transition: all 0.3s;
+        background: rgba(255, 255, 255, 0.05);
+      }
+      .file-upload-label:hover {
+        background: rgba(255, 255, 255, 0.15);
+        border-color: #fff;
+        transform: scale(1.02);
+      }
+      .photo-count {
+        font-size: 0.8rem;
+        color: #ffb7c5;
+        margin-top: 5px;
+      }
+
+      .clear-btn {
+        background: transparent;
+        border: 1px solid rgba(255, 255, 255, 0.3);
+        color: #ffdde1;
+        padding: 5px 12px;
+        border-radius: 10px;
+        cursor: pointer;
+        font-size: 0.8rem;
+        align-self: flex-end;
+      }
+      .clear-btn:hover { background: rgba(255,255,255,0.1); }
+      input[type="file"] { display: none; }
+      
+      /* --- Others --- */
       #webcam-preview {
         position: absolute;
         bottom: 24px;
         right: 24px;
-        width: 160px;
-        height: 120px;
-        border: 2px solid rgba(212, 175, 55, 0.5);
-        border-radius: 12px;
+        width: 140px;
+        height: 105px;
+        border: 4px solid #ffb7c5;
+        border-radius: 15px;
         opacity: 0.8;
-        transform: scaleX(-1); /* Mirror */
+        transform: scaleX(-1);
         z-index: 5;
         pointer-events: none;
         display: none;
-        box-shadow: 0 0 20px rgba(0,0,0,0.5);
-        background: #000;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.3);
       }
-      .file-upload-container {
+      
+      #hand-cursor {
+        position: absolute;
+        top: 0; left: 0;
+        width: 40px; height: 40px;
+        pointer-events: none;
+        z-index: 100;
+        transform: translate(-50%, -50%);
+        transition: opacity 0.2s;
+        opacity: 0;
         display: flex;
-        gap: 10px;
-        margin-top: 15px;
-      }
-      .file-upload-label {
-        flex: 1;
-        display: flex;
-        align-items: center;
         justify-content: center;
-        padding: 12px;
-        border: 1px dashed rgba(212, 175, 55, 0.5);
-        border-radius: 6px;
-        cursor: pointer;
-        color: #d4af37;
-        font-size: 0.9rem;
-        transition: all 0.3s;
-        background: rgba(212, 175, 55, 0.05);
-        text-align: center;
+        align-items: center;
+        font-size: 30px;
+        text-shadow: 0 0 10px rgba(255, 192, 203, 0.8);
       }
-      .file-upload-label:hover {
-        background: rgba(212, 175, 55, 0.15);
-        border-color: #d4af37;
+      #hand-cursor::after {
+        content: '✨';
+        animation: float-cursor 2s ease-in-out infinite;
       }
-      .clear-btn {
-        background: transparent;
-        border: 1px solid rgba(255, 255, 255, 0.2);
-        color: #aaa;
-        padding: 0 12px;
-        border-radius: 6px;
-        cursor: pointer;
-        font-size: 0.8rem;
-        transition: all 0.2s;
-      }
-      .clear-btn:hover {
-        background: rgba(255,255,255,0.1);
-        color: #fff;
-      }
-      input[type="file"] {
-        display: none;
-      }
+
       #gesture-feedback {
         position: absolute;
         top: 24px;
         right: 24px;
-        color: #d4af37;
+        color: #fff;
+        font-family: 'Quicksand', sans-serif;
         font-size: 1.4rem;
         font-weight: bold;
-        text-shadow: 0 0 15px rgba(212, 175, 55, 0.8);
         pointer-events: none;
-        background: rgba(0,0,0,0.6);
+        text-shadow: 0 0 15px rgba(255, 105, 180, 0.6);
+        background: rgba(0,0,0,0.2);
         padding: 8px 16px;
         border-radius: 20px;
         backdrop-filter: blur(4px);
-        border: 1px solid rgba(212,175,55,0.3);
+      }
+
+      /* --- Animations --- */
+      @keyframes pulse-pink {
+        0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(255, 154, 158, 0.7); }
+        70% { transform: scale(1.05); box-shadow: 0 0 0 20px rgba(255, 154, 158, 0); }
+        100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(255, 154, 158, 0); }
+      }
+      @keyframes float-card {
+        0%, 100% { transform: translateY(0px); }
+        50% { transform: translateY(-10px); }
+      }
+      @keyframes float-cursor { 
+        0%, 100% { transform: scale(1); } 
+        50% { transform: scale(1.2); } 
+      }
+      @keyframes twinkle {
+        0%, 100% { opacity: 0.5; transform: scale(1); }
+        50% { opacity: 1; transform: scale(1.2) rotate(10deg); }
+      }
+      @keyframes slide-in {
+        from { opacity: 0; transform: translateX(-20px); }
+        to { opacity: 1; transform: translateX(0); }
       }
     </style>
-    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&display=swap" rel="stylesheet">
+    <!-- Cute fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Pacifico&family=Quicksand:wght@400;600;700&display=swap" rel="stylesheet">
     
     <!-- Babel for compiling TSX in the browser -->
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
     <!-- 
       FIXED ImportMap:
-      Using esm.sh for React and Three.js for maximum compatibility.
-      Using jsdelivr for MediaPipe to avoid CORS/Fetch issues with WASM.
+      Strictly using esm.sh for React 18.2.0 and Three.js 0.160.0.
+      Removed all conflicting versions.
     -->
     <script type="importmap">
 {
@@ -205,10 +330,6 @@
   </head>
   <body>
     <div id="root"></div>
-    
-    <!-- 
-      Compile and run the React App:
-    -->
     <script 
       type="text/babel" 
       data-type="module" 
