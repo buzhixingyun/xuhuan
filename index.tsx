@@ -7,25 +7,30 @@ import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPa
 import { FilesetResolver, HandLandmarker } from '@mediapipe/tasks-vision';
 
 // --- Configuration & Constants ---
-const ORNAMENT_COUNT = 400;
-const TREE_HEIGHT = 25;
-const TREE_BASE_RADIUS = 10;
+const ORNAMENT_COUNT = 500;
+const TREE_HEIGHT = 28;
+const TREE_BASE_RADIUS = 12;
 const COLORS = {
   GOLD: 0xFFD700,
-  RED: 0xB01B2E,
-  GREEN: 0x0F4D19,
-  WHITE: 0xFFFFFF
+  RED: 0xC41E3A, // Darker, richer red
+  GREEN: 0x0B4619, // Deep forest green
+  WARM_WHITE: 0xFFFDD0
 };
-
-const SHAPES = ['sphere', 'box'];
 
 // --- Helper Functions ---
 
-// Generate a position on a cone spiral
+// Generate a position on a cone spiral (improved shape)
 const getTreePosition = (index: number, total: number) => {
-  const y = (index / total) * TREE_HEIGHT - (TREE_HEIGHT / 2); // -Height/2 to Height/2
-  const radius = ((TREE_HEIGHT / 2 - y) / TREE_HEIGHT) * TREE_BASE_RADIUS + 0.5;
-  const angle = index * 0.5; // Spiral tightness
+  // Use a power function for height to make the tree denser at the bottom
+  const normalizedIndex = index / total;
+  const y = (1 - normalizedIndex) * TREE_HEIGHT - (TREE_HEIGHT / 2); 
+  
+  // Radius tapers linearly as we go up
+  const radius = (normalizedIndex) * TREE_BASE_RADIUS;
+  
+  // Golden angle for perfect organic spiral distribution
+  const angle = index * 2.39996; 
+  
   const x = Math.cos(angle) * radius;
   const z = Math.sin(angle) * radius;
   return new THREE.Vector3(x, y, z);
@@ -33,7 +38,7 @@ const getTreePosition = (index: number, total: number) => {
 
 // Generate a random position in a box volume
 const getFloatPosition = () => {
-  const range = 30;
+  const range = 45;
   return new THREE.Vector3(
     (Math.random() - 0.5) * range,
     (Math.random() - 0.5) * range,
@@ -62,27 +67,37 @@ const App = () => {
   const handLandmarkerRef = useRef<HandLandmarker | null>(null);
   const particlesRef = useRef<any[]>([]); // Stores mesh and target data
   const photoMeshesRef = useRef<THREE.Mesh[]>([]);
+  const starRef = useRef<THREE.Mesh | null>(null); // The star on top
   const frameIdRef = useRef<number>(0);
+  
+  // Logic Refs
   const stateRef = useRef<'TREE' | 'FLOAT' | 'FOCUS'>('TREE');
-  const targetCameraPos = useRef(new THREE.Vector3(0, 0, 40));
   const focusedPhotoIndex = useRef<number>(-1);
   const handRotationRef = useRef<{x: number, y: number}>({ x: 0, y: 0 });
+  
+  // Gesture Smoothing (Debounce)
+  const gestureHistoryRef = useRef<string[]>([]);
+  const GESTURE_HISTORY_LIMIT = 8; // Number of frames to confirm a gesture change
 
   // Initialize MediaPipe
   useEffect(() => {
     const initVision = async () => {
-      const vision = await FilesetResolver.forVisionTasks(
-        "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.0/wasm"
-      );
-      handLandmarkerRef.current = await HandLandmarker.createFromOptions(vision, {
-        baseOptions: {
-          modelAssetPath: `https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task`,
-          delegate: "GPU"
-        },
-        runningMode: "VIDEO",
-        numHands: 1
-      });
-      setLoading(false);
+      try {
+        const vision = await FilesetResolver.forVisionTasks(
+          "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.8/wasm"
+        );
+        handLandmarkerRef.current = await HandLandmarker.createFromOptions(vision, {
+          baseOptions: {
+            modelAssetPath: `https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task`,
+            delegate: "GPU"
+          },
+          runningMode: "VIDEO",
+          numHands: 1
+        });
+        setLoading(false);
+      } catch (error) {
+        console.error("Failed to load MediaPipe:", error);
+      }
     };
     initVision();
   }, []);
@@ -93,12 +108,12 @@ const App = () => {
 
     // Scene
     const scene = new THREE.Scene();
-    scene.fog = new THREE.FogExp2(0x000000, 0.02);
+    scene.fog = new THREE.FogExp2(0x050805, 0.015); // Deep green-black fog
     sceneRef.current = scene;
 
     // Camera
-    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-    camera.position.set(0, 0, 40);
+    const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+    camera.position.set(0, 0, 45);
     cameraRef.current = camera;
 
     // Renderer
@@ -106,16 +121,16 @@ const App = () => {
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.2;
+    renderer.toneMappingExposure = 1.0;
     mountRef.current.appendChild(renderer.domElement);
     rendererRef.current = renderer;
 
     // Post Processing (Bloom)
     const renderScene = new RenderPass(scene, camera);
     const bloomPass = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 1.5, 0.4, 0.85);
-    bloomPass.threshold = 0.2;
-    bloomPass.strength = 1.5;
-    bloomPass.radius = 0.5;
+    bloomPass.threshold = 0.15;
+    bloomPass.strength = 1.8; // Stronger glow for "Cinematic" feel
+    bloomPass.radius = 0.8;
     
     const composer = new EffectComposer(renderer);
     composer.addPass(renderScene);
@@ -123,66 +138,103 @@ const App = () => {
     composerRef.current = composer;
 
     // Lights
-    const ambientLight = new THREE.AmbientLight(0x404040, 2);
+    const ambientLight = new THREE.AmbientLight(0x404040, 0.5);
     scene.add(ambientLight);
 
     const pointLight = new THREE.PointLight(COLORS.GOLD, 2, 100);
-    pointLight.position.set(10, 10, 10);
+    pointLight.position.set(10, 10, 20);
     scene.add(pointLight);
     
-    const pointLight2 = new THREE.PointLight(COLORS.RED, 2, 100);
-    pointLight2.position.set(-10, -10, 10);
+    // Bottom red glow
+    const pointLight2 = new THREE.PointLight(COLORS.RED, 3, 80);
+    pointLight2.position.set(-10, -20, 10);
     scene.add(pointLight2);
     
-    const spotLight = new THREE.SpotLight(0xffffff, 5);
-    spotLight.position.set(0, 50, 0);
-    spotLight.angle = Math.PI / 6;
-    spotLight.penumbra = 1;
+    // Top-down spotlight for drama
+    const spotLight = new THREE.SpotLight(0xfffae6, 8);
+    spotLight.position.set(0, 60, 0);
+    spotLight.angle = Math.PI / 5;
+    spotLight.penumbra = 0.5;
+    spotLight.castShadow = true;
     scene.add(spotLight);
 
-    // Initial Particles (Ornaments)
-    const geometrySphere = new THREE.SphereGeometry(0.5, 16, 16);
-    const geometryBox = new THREE.BoxGeometry(0.8, 0.8, 0.8);
+    // --- Geometry Construction ---
+
+    // 1. Main Particles (Ornaments)
+    const geometrySphere = new THREE.SphereGeometry(0.6, 16, 16);
+    const geometryBox = new THREE.BoxGeometry(0.9, 0.9, 0.9);
     
     const materialGold = new THREE.MeshStandardMaterial({ 
-      color: COLORS.GOLD, metalness: 0.9, roughness: 0.1 
+      color: COLORS.GOLD, metalness: 1.0, roughness: 0.1, emissive: 0x332200 
     });
     const materialRed = new THREE.MeshStandardMaterial({ 
-      color: COLORS.RED, metalness: 0.6, roughness: 0.3 
+      color: COLORS.RED, metalness: 0.7, roughness: 0.2, emissive: 0x220000 
     });
     const materialGreen = new THREE.MeshStandardMaterial({ 
-      color: COLORS.GREEN, metalness: 0.3, roughness: 0.8 
+      color: COLORS.GREEN, metalness: 0.4, roughness: 0.8 
+    });
+    const materialWhite = new THREE.MeshStandardMaterial({
+        color: COLORS.WARM_WHITE, metalness: 0.1, roughness: 0.1, emissive: 0x555555
     });
 
     const particles: any[] = [];
 
     for (let i = 0; i < ORNAMENT_COUNT; i++) {
-      const isSphere = Math.random() > 0.5;
-      const geo = isSphere ? geometrySphere : geometryBox;
-      
-      let mat;
       const rand = Math.random();
-      if (rand < 0.33) mat = materialGold;
-      else if (rand < 0.66) mat = materialRed;
-      else mat = materialGreen;
+      let geo, mat;
+
+      if (rand < 0.1) {
+          geo = geometryBox; // Presents
+          mat = materialRed;
+      } else if (rand < 0.4) {
+          geo = geometrySphere;
+          mat = materialGold;
+      } else if (rand < 0.6) {
+          geo = geometrySphere;
+          mat = materialRed;
+      } else if (rand < 0.95) {
+          geo = geometrySphere; // Filler greenery
+          mat = materialGreen;
+      } else {
+          geo = geometrySphere; // Lights
+          mat = materialWhite;
+      }
 
       const mesh = new THREE.Mesh(geo, mat);
       
       const treePos = getTreePosition(i, ORNAMENT_COUNT);
       const floatPos = getFloatPosition();
 
-      // Start at tree position
       mesh.position.copy(treePos);
+      
+      // Random rotation and scale variation
+      mesh.rotation.set(Math.random() * Math.PI, Math.random() * Math.PI, 0);
+      const scale = 0.5 + Math.random() * 0.8;
+      mesh.scale.set(scale, scale, scale);
+
       mesh.userData = {
         treePos: treePos,
         floatPos: floatPos,
-        rotationSpeed: new THREE.Vector3(Math.random() * 0.02, Math.random() * 0.02, 0)
+        rotationSpeed: new THREE.Vector3(
+            (Math.random() - 0.5) * 0.02, 
+            (Math.random() - 0.5) * 0.02, 
+            (Math.random() - 0.5) * 0.02
+        ),
+        phase: Math.random() * Math.PI * 2 // For twinkling
       };
 
       scene.add(mesh);
       particles.push(mesh);
     }
     particlesRef.current = particles;
+
+    // 2. The Star on Top
+    const starGeo = new THREE.IcosahedronGeometry(2, 0);
+    const starMat = new THREE.MeshBasicMaterial({ color: 0xffffee });
+    const starMesh = new THREE.Mesh(starGeo, starMat);
+    starMesh.position.set(0, TREE_HEIGHT/2 + 2, 0);
+    scene.add(starMesh);
+    starRef.current = starMesh;
 
     // Handle Resize
     const handleResize = () => {
@@ -205,52 +257,69 @@ const App = () => {
   useEffect(() => {
     if (!sceneRef.current || userPhotos.length === 0) return;
 
-    // Add new photos to scene
     const loader = new THREE.TextureLoader();
     
-    // We only process the latest added photo to avoid duplicates or re-adding
-    // For simplicity, we'll clear and rebuild photo meshes if this list changes (inefficient but safe for small counts)
-    // Actually, let's just add the ones that aren't there.
-    
-    // Simplification: Clear old photo meshes to reset positions
+    // Clear old photos
     photoMeshesRef.current.forEach(m => sceneRef.current?.remove(m));
     photoMeshesRef.current = [];
     
     userPhotos.forEach((url, index) => {
       loader.load(url, (texture) => {
+        texture.colorSpace = THREE.SRGBColorSpace; // Correct color
         const aspect = texture.image.width / texture.image.height;
-        const geo = new THREE.PlaneGeometry(3 * aspect, 3);
+        const geo = new THREE.PlaneGeometry(4 * aspect, 4);
         const mat = new THREE.MeshBasicMaterial({ 
           map: texture, 
           side: THREE.DoubleSide,
-          transparent: true,
-          opacity: 0.9
         });
+
+        // Define the mesh for the photo
         const mesh = new THREE.Mesh(geo, mat);
         
-        // Add to particles system logic
-        // We inject it into the scene but manage it separately for raycasting
-        const totalItems = ORNAMENT_COUNT + userPhotos.length;
-        const offsetIndex = ORNAMENT_COUNT + index;
+        // Add a gold border frame
+        const frameGeo = new THREE.PlaneGeometry(4 * aspect + 0.2, 4 + 0.2);
+        const frameMat = new THREE.MeshStandardMaterial({ color: COLORS.GOLD, metalness: 1.0, roughness: 0.2 });
+        const frameMesh = new THREE.Mesh(frameGeo, frameMat);
+        frameMesh.position.z = -0.05; // Slightly behind photo
         
-        const treePos = getTreePosition(offsetIndex, totalItems);
-        // Make photos stick out a bit more on the tree
-        treePos.multiplyScalar(1.2); 
+        const group = new THREE.Group();
+        group.add(mesh);
+        group.add(frameMesh);
+        
+        // Calculate Positions
+        // Distribute photos spirally but further out
+        const totalItems = userPhotos.length;
+        const y = (index / totalItems) * (TREE_HEIGHT * 0.8) - (TREE_HEIGHT * 0.4);
+        const angle = index * (Math.PI * 2 / 1.618); // Golden ratio steps
+        const radius = TREE_BASE_RADIUS * 0.8;
+        
+        const treePos = new THREE.Vector3(
+            Math.cos(angle) * radius,
+            y,
+            Math.sin(angle) * radius
+        );
+        treePos.multiplyScalar(1.3); // Push out of foliage
         
         const floatPos = getFloatPosition();
         
-        mesh.position.copy(treePos);
-        mesh.lookAt(0, 0, 0); // Face outward from tree center initially
+        group.position.copy(treePos);
+        group.lookAt(0, 0, 0);
         
-        mesh.userData = {
+        // Store user data on the group
+        group.userData = {
           treePos: treePos,
           floatPos: floatPos,
           isPhoto: true,
-          originalScale: new THREE.Vector3(1, 1, 1)
+          originalScale: new THREE.Vector3(1, 1, 1),
+          phase: Math.random() * Math.PI
         };
         
-        sceneRef.current?.add(mesh);
-        photoMeshesRef.current.push(mesh);
+        // Needed for tracking
+        // We'll cast to Mesh just for TypeScript array compatibility or wrapper it
+        const groupAsMesh = group as unknown as THREE.Mesh;
+        
+        sceneRef.current?.add(group);
+        photoMeshesRef.current.push(groupAsMesh);
       });
     });
 
@@ -260,151 +329,183 @@ const App = () => {
   const animate = useCallback(() => {
     if (!started || !cameraRef.current || !sceneRef.current) return;
 
-    // 1. Detect Hand
-    let detectedState: 'TREE' | 'FLOAT' | 'FOCUS' | null = null;
-    let handPos = { x: 0, y: 0 }; // Normalized -1 to 1
+    // 1. Detect Hand & Smooth Gestures
+    let currentFrameGesture: 'TREE' | 'FLOAT' | 'FOCUS' | null = null;
+    let handPos = { x: 0, y: 0 }; 
 
     if (handLandmarkerRef.current && videoRef.current && videoRef.current.currentTime > 0) {
       const results = handLandmarkerRef.current.detectForVideo(videoRef.current, Date.now());
       
       if (results.landmarks && results.landmarks.length > 0) {
-        const landmarks = results.landmarks[0]; // 0 is Wrist, 4 Thumb tip, 8 Index tip, 12 Middle, 16 Ring, 20 Pinky
-        
-        // Logic for gestures
+        const landmarks = results.landmarks[0];
         const wrist = landmarks[0];
         const thumbTip = landmarks[4];
         const indexTip = landmarks[8];
-        const middleTip = landmarks[12];
-        const ringTip = landmarks[16];
-        const pinkyTip = landmarks[20];
+        const indexBase = landmarks[5];
         
-        // Calculate average distance of tips from wrist
-        const tips = [indexTip, middleTip, ringTip, pinkyTip];
-        let avgDist = 0;
-        tips.forEach(p => {
-          const d = Math.sqrt(Math.pow(p.x - wrist.x, 2) + Math.pow(p.y - wrist.y, 2));
-          avgDist += d;
-        });
-        avgDist /= 4;
+        // Calculate average open-ness of fingers
+        const fingerTips = [8, 12, 16, 20];
+        const fingerBases = [5, 9, 13, 17];
+        let openCount = 0;
+        
+        for(let i=0; i<4; i++) {
+            // Simple check: is tip further from wrist than base?
+            const tip = landmarks[fingerTips[i]];
+            const base = landmarks[fingerBases[i]];
+            const distTip = Math.hypot(tip.x - wrist.x, tip.y - wrist.y);
+            const distBase = Math.hypot(base.x - wrist.x, base.y - wrist.y);
+            if (distTip > distBase * 1.2) openCount++;
+        }
 
-        // Pinch distance (Thumb to Index)
-        const pinchDist = Math.sqrt(Math.pow(thumbTip.x - indexTip.x, 2) + Math.pow(thumbTip.y - indexTip.y, 2));
+        // Pinch logic (Thumb tip close to Index tip)
+        const pinchDist = Math.hypot(thumbTip.x - indexTip.x, thumbTip.y - indexTip.y);
 
-        // Coordinate for rotation (Use wrist or centroid)
-        handPos.x = (wrist.x - 0.5) * 2; // -1 to 1
-        handPos.y = (wrist.y - 0.5) * 2; // -1 to 1
+        // Map Hand Position
+        handPos.x = (wrist.x - 0.5) * 2;
+        handPos.y = (wrist.y - 0.5) * 2;
 
-        if (pinchDist < 0.05) {
-          detectedState = 'FOCUS';
-          setGesture('Pinch (Grab)');
-        } else if (avgDist < 0.15) {
-          detectedState = 'TREE';
-          setGesture('Fist (Tree)');
-        } else {
-          detectedState = 'FLOAT';
-          setGesture('Open Hand (Float)');
-          // Update rotation ref if in float mode
+        if (pinchDist < 0.04) {
+          currentFrameGesture = 'FOCUS';
+        } else if (openCount <= 1) { // Fist (0 or 1 finger open)
+          currentFrameGesture = 'TREE';
+        } else if (openCount >= 3) { // Open Hand
+          currentFrameGesture = 'FLOAT';
           handRotationRef.current = { x: handPos.x, y: handPos.y };
         }
-      } else {
-        setGesture('No Hand Detected');
       }
     }
 
-    // 2. State Transition Logic
+    // Debounce Logic
+    if (currentFrameGesture) {
+        gestureHistoryRef.current.push(currentFrameGesture);
+    } else {
+        // If hand lost, maybe keep previous or drift?
+        // Let's not push anything to history to let it stale slowly or maintain last known
+    }
+    
+    if (gestureHistoryRef.current.length > GESTURE_HISTORY_LIMIT) {
+        gestureHistoryRef.current.shift();
+    }
+
+    // Determine dominant gesture in history
+    const counts = { TREE: 0, FLOAT: 0, FOCUS: 0 };
+    gestureHistoryRef.current.forEach(g => {
+        if (g in counts) counts[g as keyof typeof counts]++;
+    });
+
+    let detectedState: 'TREE' | 'FLOAT' | 'FOCUS' | null = null;
+    if (counts.FOCUS > GESTURE_HISTORY_LIMIT * 0.6) detectedState = 'FOCUS';
+    else if (counts.TREE > GESTURE_HISTORY_LIMIT * 0.6) detectedState = 'TREE';
+    else if (counts.FLOAT > GESTURE_HISTORY_LIMIT * 0.6) detectedState = 'FLOAT';
+
+    // Update UI text
+    if (detectedState === 'TREE') setGesture('Fist (Assemble Tree)');
+    else if (detectedState === 'FLOAT') setGesture('Open Hand (Float & Rotate)');
+    else if (detectedState === 'FOCUS') setGesture('Pinch (View Photo)');
+    else if (!currentFrameGesture) setGesture('No Hand Detected');
+
+    // State Transition
     if (detectedState) {
-      // Logic: If we are in FOCUS, we only stay in focus if pinch is held OR if we are transitioning.
-      // But user requirements: 
-      // - Fist -> Tree
-      // - Open -> Scatter
-      // - Pinch -> Grab Photo
-      
-      if (detectedState === 'FOCUS') {
+       if (detectedState === 'FOCUS') {
          if (stateRef.current !== 'FOCUS') {
-             // Try to grab nearest photo
              stateRef.current = 'FOCUS';
-             // Raycast logic could go here, but for simplicity, we focus the photo closest to screen center or cycle
-             // Let's just pick a random one if none focused, or cycle
              if (photoMeshesRef.current.length > 0) {
                focusedPhotoIndex.current = (focusedPhotoIndex.current + 1) % photoMeshesRef.current.length;
              }
          }
-      } else {
-        stateRef.current = detectedState;
-        focusedPhotoIndex.current = -1;
-      }
+       } else {
+         stateRef.current = detectedState;
+         focusedPhotoIndex.current = -1;
+       }
     }
 
-    // 3. Animation & Interpolation
+    // 3. Animation
     const time = Date.now() * 0.001;
     const currentState = stateRef.current;
 
-    // Update Ornaments
+    // Star Animation
+    if (starRef.current) {
+        starRef.current.rotation.y = time * 0.5;
+        starRef.current.rotation.z = Math.sin(time) * 0.1;
+        const starScale = 1 + Math.sin(time * 3) * 0.1;
+        starRef.current.scale.set(starScale, starScale, starScale);
+        
+        // Move star based on state
+        if (currentState === 'TREE') {
+            starRef.current.position.lerp(new THREE.Vector3(0, TREE_HEIGHT/2 + 1, 0), 0.05);
+        } else {
+            starRef.current.position.lerp(new THREE.Vector3(0, 20, 0), 0.05);
+        }
+    }
+
+    // Particles Animation
     particlesRef.current.forEach((mesh) => {
       let target;
       if (currentState === 'TREE') {
         target = mesh.userData.treePos;
       } else {
-        // FLOAT or FOCUS
         target = mesh.userData.floatPos;
       }
       
-      // Lerp position
-      mesh.position.lerp(target, 0.05);
+      mesh.position.lerp(target, 0.04); // Smoother lerp
       
-      // Rotate
       mesh.rotation.x += mesh.userData.rotationSpeed.x;
       mesh.rotation.y += mesh.userData.rotationSpeed.y;
+
+      // Twinkle effect (Scale pulsing)
+      const twinkle = Math.sin(time * 2 + mesh.userData.phase) * 0.1 + 1.0;
+      mesh.scale.setScalar(twinkle * (mesh === starRef.current ? 2 : 1) * (currentState === 'FLOAT' ? 0.8 : 1.0));
     });
 
-    // Update Photos
-    photoMeshesRef.current.forEach((mesh, i) => {
+    // Photos Animation
+    photoMeshesRef.current.forEach((group, i) => {
+      const mesh = group as unknown as THREE.Group; // It's actually a Group
       let targetPos = new THREE.Vector3();
       let targetScale = new THREE.Vector3(1, 1, 1);
       let targetRot = new THREE.Quaternion();
 
       if (currentState === 'TREE') {
-        targetPos.copy(mesh.userData.treePos);
+        targetPos.copy(group.userData.treePos);
         // Look away from center
         const lookAtPos = mesh.position.clone().multiplyScalar(2);
         const m = new THREE.Matrix4();
         m.lookAt(lookAtPos, mesh.position, new THREE.Vector3(0, 1, 0));
         targetRot.setFromRotationMatrix(m);
+        targetScale.setScalar(0.8); // Smaller on tree
 
       } else if (currentState === 'FOCUS' && i === focusedPhotoIndex.current) {
-        // Bring to front center
-        targetPos.set(0, 0, 15);
-        targetScale.set(3, 3, 3);
+        targetPos.set(0, 0, 25);
+        targetScale.set(3.5, 3.5, 3.5);
         targetRot.setFromEuler(new THREE.Euler(0, 0, 0));
       } else {
-        // FLOAT or unfocused photos
-        targetPos.copy(mesh.userData.floatPos);
-        targetRot.setFromEuler(new THREE.Euler(time * 0.2 + i, time * 0.1, 0));
+        targetPos.copy(group.userData.floatPos);
+        targetRot.setFromEuler(new THREE.Euler(
+            Math.sin(time * 0.1 + i) * 0.5, 
+            time * 0.05, 
+            0
+        ));
       }
 
-      mesh.position.lerp(targetPos, 0.08);
-      mesh.scale.lerp(targetScale, 0.08);
-      mesh.quaternion.slerp(targetRot, 0.08);
+      mesh.position.lerp(targetPos, 0.06);
+      mesh.scale.lerp(targetScale, 0.06);
+      mesh.quaternion.slerp(targetRot, 0.06);
     });
 
-    // Camera Movement
+    // Camera Logic
     if (currentState === 'FLOAT' || currentState === 'FOCUS') {
-      // Rotate around based on hand position
-      // Map hand x (-1 to 1) to angle
       const angle = handRotationRef.current.x * Math.PI; 
-      const height = handRotationRef.current.y * 10;
+      const height = handRotationRef.current.y * 15;
       
-      const r = 40;
+      const r = 45;
       const targetCamX = Math.sin(angle) * r;
       const targetCamZ = Math.cos(angle) * r;
-      const targetCamY = -height; // Invert y for natural feel
+      const targetCamY = -height; 
 
-      cameraRef.current.position.lerp(new THREE.Vector3(targetCamX, targetCamY, targetCamZ), 0.05);
+      cameraRef.current.position.lerp(new THREE.Vector3(targetCamX, targetCamY, targetCamZ), 0.04);
       cameraRef.current.lookAt(0, 0, 0);
     } else {
-      // Reset camera for TREE
-      cameraRef.current.position.lerp(new THREE.Vector3(0, 0, 40), 0.05);
-      cameraRef.current.lookAt(0, 0, 0);
+      cameraRef.current.position.lerp(new THREE.Vector3(0, 2, 45), 0.04);
+      cameraRef.current.lookAt(0, 5, 0); // Look slightly up at tree center
     }
 
     composerRef.current?.render();
@@ -421,7 +522,6 @@ const App = () => {
   }, [started, animate]);
 
 
-  // Handlers
   const handleStart = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ video: true });
@@ -447,47 +547,44 @@ const App = () => {
 
   return (
     <>
-      {/* UI Overlay */}
       <div id="ui-layer">
         <div className="controls">
           <h1>Christmas Magic</h1>
           
           {!started ? (
              <>
-               <p>Experience a gesture-controlled 3D Christmas tree.</p>
+               <p>Experience a 3D Christmas Tree controlled by your hands.</p>
                {loading ? (
-                 <p style={{color: `#${COLORS.GOLD.toString(16).padStart(6, '0')}`}}>Loading AI Models...</p>
+                 <p style={{color: `#${COLORS.GOLD.toString(16).padStart(6, '0')}`, fontStyle: 'italic'}}>Loading Magic...</p>
                ) : (
-                 <button className="btn" onClick={handleStart}>Start Experience</button>
+                 <button className="btn" onClick={handleStart}>Enter Experience</button>
                )}
              </>
           ) : (
              <>
-               <p><strong>Gesture Controls:</strong></p>
+               <p><strong>Gestures:</strong></p>
                <ul>
                  <li>✊ <strong>Fist:</strong> Assemble Tree</li>
-                 <li>🖐 <strong>Open Palm:</strong> Explode / Float</li>
+                 <li>🖐 <strong>Open Hand:</strong> Float & Explore</li>
                  <li>🤏 <strong>Pinch:</strong> Grab Photo</li>
-                 <li>👋 <strong>Move Hand:</strong> Rotate View (in Float mode)</li>
                </ul>
                <div id="gesture-feedback">{gesture}</div>
              </>
           )}
 
-          <div style={{marginTop: '20px', borderTop: '1px solid #555', paddingTop: '10px'}}>
-             <p>Add your memories to the tree:</p>
+          <div style={{marginTop: '20px', borderTop: '1px solid rgba(212,175,55,0.3)', paddingTop: '15px'}}>
+             <p style={{marginBottom:'5px'}}>Add your memories:</p>
              <label className="file-upload-label">
                <input type="file" ref={fileInputRef} onChange={handleFileUpload} accept="image/*" />
                + Upload Photo
              </label>
-             <p style={{fontSize: '0.8rem', color: '#888'}}>
-               Photos Added: {userPhotos.length}
+             <p style={{fontSize: '0.8rem', color: '#888', marginTop: '5px'}}>
+               Photos on Tree: {userPhotos.length}
              </p>
           </div>
         </div>
       </div>
 
-      {/* Hidden Video for MediaPipe */}
       <video 
         ref={videoRef} 
         id="webcam-preview" 
@@ -497,13 +594,11 @@ const App = () => {
         style={{ display: started ? 'block' : 'none' }}
       ></video>
 
-      {/* Three.js Container */}
       <div ref={mountRef} id="canvas-container" style={{width: '100%', height: '100%'}} />
     </>
   );
 };
 
-// Mount
 const container = document.getElementById('root');
 if (container) {
   const root = createRoot(container);
