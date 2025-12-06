@@ -257,7 +257,7 @@ const App = () => {
 
   // Handle Photo Uploads
   useEffect(() => {
-    if (!sceneRef.current || userPhotos.length === 0) return;
+    if (!sceneRef.current) return;
 
     const loader = new THREE.TextureLoader();
     
@@ -570,11 +570,18 @@ const App = () => {
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
-      const file = e.target.files[0];
-      const url = URL.createObjectURL(file);
-      setUserPhotos(prev => [...prev, url]);
+      const newPhotos: string[] = [];
+      // Loop through all selected files
+      Array.from(e.target.files).forEach(file => {
+          newPhotos.push(URL.createObjectURL(file));
+      });
+      setUserPhotos(prev => [...prev, ...newPhotos]);
     }
   };
+  
+  const handleClearPhotos = () => {
+      setUserPhotos([]);
+  }
 
   return (
     <>
@@ -588,7 +595,12 @@ const App = () => {
                {loading ? (
                  <p style={{color: `#${COLORS.GOLD.toString(16).padStart(6, '0')}`, fontStyle: 'italic'}}>魔法加载中...</p>
                ) : (
-                 <button className="btn" onClick={handleStart}>开启体验</button>
+                 <button 
+                    className={`btn ${userPhotos.length > 0 ? 'highlight' : ''}`} 
+                    onClick={handleStart}
+                 >
+                    {userPhotos.length > 0 ? '照片已添加，开启体验' : '开启体验'}
+                 </button>
                )}
              </>
           ) : (
@@ -605,12 +617,19 @@ const App = () => {
 
           <div style={{marginTop: '20px', borderTop: '1px solid rgba(212,175,55,0.3)', paddingTop: '15px'}}>
              <p style={{marginBottom:'5px'}}>添加你的回忆：</p>
-             <label className="file-upload-label">
-               <input type="file" ref={fileInputRef} onChange={handleFileUpload} accept="image/*" />
-               + 上传照片
-             </label>
+             <div className="file-upload-container">
+                 <label className="file-upload-label">
+                   {/* Added 'multiple' attribute for batch selection */}
+                   <input type="file" ref={fileInputRef} onChange={handleFileUpload} accept="image/*" multiple />
+                   + 添加照片
+                 </label>
+                 {userPhotos.length > 0 && (
+                     <button className="clear-btn" onClick={handleClearPhotos}>清空</button>
+                 )}
+             </div>
              <p style={{fontSize: '0.8rem', color: '#888', marginTop: '5px'}}>
-               树上的照片: {userPhotos.length}
+               树上的照片: {userPhotos.length} 
+               {userPhotos.length > 0 && !started && " (请点击开启体验)"}
              </p>
           </div>
         </div>
