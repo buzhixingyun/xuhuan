@@ -7,6 +7,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="theme-color" content="#1a0b12">
+    <!-- CRITICAL: Fix NetEase Music 403 Forbidden (Anti-Hotlink) -->
+    <meta name="referrer" content="no-referrer" />
     <title>浪漫圣诞 | Romantic Christmas</title>
     <style>
       body {
@@ -186,6 +188,31 @@
         animation-play-state: running;
       }
 
+      .exit-fullscreen-btn {
+        pointer-events: auto;
+        position: absolute;
+        top: max(20px, env(safe-area-inset-top));
+        left: 20px;
+        width: 44px;
+        height: 44px;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.15);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        color: #fff;
+        font-size: 1.2rem;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        backdrop-filter: blur(8px);
+        -webkit-backdrop-filter: blur(8px);
+        cursor: pointer;
+        z-index: 50;
+        transition: background 0.2s;
+      }
+      .exit-fullscreen-btn:active {
+        background: rgba(255, 255, 255, 0.3);
+      }
+
       /* --- Typography & Elements --- */
       h1 {
         margin: 0;
@@ -272,6 +299,51 @@
       }
 
       input[type="file"] { display: none; }
+
+      /* --- Checkbox for Camera Privacy --- */
+      .checkbox-container {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          cursor: pointer;
+          user-select: none;
+          padding: 8px;
+      }
+      .checkbox-container input {
+          display: none;
+      }
+      .checkmark {
+          width: 20px;
+          height: 20px;
+          border: 2px solid rgba(255, 183, 197, 0.8);
+          border-radius: 6px;
+          position: relative;
+          transition: background 0.2s, border-color 0.2s;
+      }
+      .checkbox-container input:checked ~ .checkmark {
+          background: #ff9a9e;
+          border-color: #ff9a9e;
+      }
+      .checkmark:after {
+          content: "";
+          position: absolute;
+          display: none;
+          left: 6px;
+          top: 2px;
+          width: 5px;
+          height: 10px;
+          border: solid white;
+          border-width: 0 2px 2px 0;
+          transform: rotate(45deg);
+      }
+      .checkbox-container input:checked ~ .checkmark:after {
+          display: block;
+      }
+      .checkbox-text {
+          font-size: 0.9rem;
+          color: #ffe6eb;
+          opacity: 0.9;
+      }
       
       /* --- Webcam Preview --- */
       #webcam-preview {
@@ -290,6 +362,7 @@
         object-fit: cover;
       }
       #webcam-preview.active { display: block; }
+      #webcam-preview.hidden { display: none !important; }
 
       /* Hand cursor */
       #hand-cursor {
@@ -324,7 +397,7 @@
     <!-- 
       FIXED ImportMap:
       Strictly using esm.sh for React 18.2.0 and Three.js 0.160.0.
-      CRITICAL: Conflicting versions removed for mobile stability.
+      CRITICAL: Conflicting versions REMOVED for mobile stability.
     -->
     <script type="importmap">
 {
