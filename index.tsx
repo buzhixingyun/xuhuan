@@ -8,7 +8,13 @@ import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPa
 import { FilesetResolver, HandLandmarker } from '@mediapipe/tasks-vision';
 
 // --- Configuration & Constants ---
-const ORNAMENT_COUNT = 550; 
+// Detect mobile to optimize performance
+const isMobile = window.innerWidth < 768;
+// Reduce counts on mobile to prevent overheating/lag
+const ORNAMENT_COUNT = isMobile ? 350 : 550; 
+const STARDUST_COUNT = isMobile ? 800 : 1500;
+const SNOW_COUNT = isMobile ? 200 : 400;
+
 const TREE_HEIGHT = 28;
 const TREE_BASE_RADIUS = 11;
 const COLORS = {
@@ -141,11 +147,13 @@ const App = () => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cursorRef = useRef<HTMLDivElement>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
   
   const [loading, setLoading] = useState(true);
   const [started, setStarted] = useState(false);
   const [gesture, setGesture] = useState<string>('等待唤醒...');
   const [userPhotos, setUserPhotos] = useState<string[]>([]);
+  const [isPlaying, setIsPlaying] = useState(false);
   
   const sceneRef = useRef<THREE.Scene | null>(null);
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
@@ -158,6 +166,7 @@ const App = () => {
   const photoMeshesRef = useRef<THREE.Mesh[]>([]);
   const starRef = useRef<THREE.Group | null>(null);
   const stardustRef = useRef<THREE.Points | null>(null);
+  const snowRef = useRef<THREE.Points | null>(null);
   const frameIdRef = useRef<number>(0);
 
   const ambientLightRef = useRef<THREE.AmbientLight | null>(null);
@@ -175,8 +184,11 @@ const App = () => {
   const panRef = useRef<{x: number, y: number}>({ x: 0, y: 0 });
   const cameraOffsetRef = useRef<{x: number, y: number}>({ x: 0, y: 0 });
   const zoomRef = useRef<number>(1.0);
+  
+  // Input Handling Refs
   const isDraggingRef = useRef<boolean>(false);
   const lastMousePosRef = useRef<{x: number, y: number}>({ x: 0, y: 0 });
+  const lastTouchDistanceRef = useRef<number>(0); // For pinch to zoom
   
   const gestureHistoryRef = useRef<string[]>([]);
   const GESTURE_HISTORY_LIMIT = 5; 
@@ -211,7 +223,7 @@ const App = () => {
 
     // Soft Romantic Scene
     const scene = new THREE.Scene();
-    scene.fog = new THREE.FogExp2(0x2e1c2b, 0.015); // Lighter fog for dreamy look
+    scene.fog = new THREE.FogExp2(0x2e1c2b, 0.012); 
     sceneRef.current = scene;
 
     // Camera
@@ -220,51 +232,47 @@ const App = () => {
     cameraRef.current = camera;
 
     // Renderer
-    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     renderer.setSize(window.innerWidth, window.innerHeight);
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2)); // Limit pixel ratio for performance
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.2;
+    renderer.toneMappingExposure = 1.1;
     mountRef.current.appendChild(renderer.domElement);
     rendererRef.current = renderer;
 
     // Post Processing - Dreamy Bloom
     const renderScene = new RenderPass(scene, camera);
     const bloomPass = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 1.5, 0.4, 0.85);
-    // Tuned for soft romantic glow
-    bloomPass.threshold = 0.75; // Only glow highlights
-    bloomPass.strength = 0.8;   // Distinct glow
-    bloomPass.radius = 1.1;     // Wide, soft spread
+    // Tuned for soft romantic glow, reduced bloom on mobile to save GPU
+    bloomPass.threshold = 0.7; 
+    bloomPass.strength = isMobile ? 0.4 : 0.6;   
+    bloomPass.radius = isMobile ? 0.6 : 1.0;     
     
     const composer = new EffectComposer(renderer);
     composer.addPass(renderScene);
     composer.addPass(bloomPass);
     composerRef.current = composer;
 
-    // Lights - Warm & Cozy
-    // Ambient: Lavender Blush, Soft
+    // Lights
     const ambientLight = new THREE.AmbientLight(0xfff0f5, 0.6); 
     scene.add(ambientLight);
     ambientLightRef.current = ambientLight;
 
-    // Main: Pastel Pink Gold, Bright
-    const mainLight = new THREE.PointLight(0xffd1dc, 1.5, 120); 
+    const mainLight = new THREE.PointLight(0xffd1dc, 1.8, 120); 
     mainLight.position.set(10, 20, 20);
     scene.add(mainLight);
     mainLightRef.current = mainLight;
     
-    // Fill: Light Cyan, Cooler rim light
-    const fillLight = new THREE.PointLight(0xe0ffff, 0.8, 100); 
+    const fillLight = new THREE.PointLight(0xe0ffff, 1.0, 100); 
     fillLight.position.set(-15, -10, 15);
     scene.add(fillLight);
     fillLightRef.current = fillLight;
 
-    // --- Cute Materials & Geometry (Upgraded) ---
+    // Materials & Textures
     const stripeTexture = createStripeTexture();
     const pinkGradTexture = createSoftGradientTexture('#FFB7C5', '#FFF0F5');
     const goldGradTexture = createSoftGradientTexture('#FFE5B4', '#FFF8DC');
 
-    // 1. Pearl (Iridescent White)
     const matPearl = new THREE.MeshPhysicalMaterial({ 
       color: COLORS.WHITE, 
       metalness: 0.1, 
@@ -272,44 +280,40 @@ const App = () => {
       clearcoat: 0.9,
       clearcoatRoughness: 0.1,
       sheen: 1.0,
-      sheenColor: 0xffe7e7, // Pinkish sheen
+      sheenColor: 0xffe7e7,
       iridescence: 0.6,
       iridescenceIOR: 1.3
     });
     
-    // 2. Jelly Pink (Translucent Gummy)
     const matJellyPink = new THREE.MeshPhysicalMaterial({ 
       map: pinkGradTexture,
       color: 0xffffff,
-      roughness: 0.15,
+      roughness: 0.1,
       metalness: 0.1,
-      transmission: 0.6, // More translucent
-      thickness: 2.0,
+      transmission: 0.8,
+      thickness: 1.5,
       clearcoat: 1.0,
       side: THREE.DoubleSide
     });
     
-    // 3. Soft Gold (Satin Finish)
     const matGold = new THREE.MeshPhysicalMaterial({ 
       map: goldGradTexture,
       color: 0xffffff,
       roughness: 0.3,
-      metalness: 0.7,
-      clearcoat: 0.6,
+      metalness: 0.6,
+      clearcoat: 0.7,
       sheen: 1.0,
       sheenColor: 0xffd700
     });
     
-    // 4. Mint Glass (Frosted)
     const matMint = new THREE.MeshPhysicalMaterial({ 
       color: COLORS.MINT,
-      roughness: 0.35,
+      roughness: 0.3,
       metalness: 0.1,
-      transmission: 0.3,
+      transmission: 0.5,
       clearcoat: 1.0
     });
     
-    // 5. Hard Candy (Striped Glossy)
     const matCandy = new THREE.MeshPhysicalMaterial({
         map: stripeTexture, 
         roughness: 0.2,
@@ -318,10 +322,9 @@ const App = () => {
         clearcoatRoughness: 0.05
     });
 
-    // --- Geometries: Round and Soft ---
-    const geoSphere = new THREE.SphereGeometry(0.6, 32, 32); 
+    const geoSphere = new THREE.SphereGeometry(0.6, 16, 16); // Reduced segments for mobile
     const geoBox = new THREE.BoxGeometry(0.85, 0.85, 0.85); 
-    const geoTorus = new THREE.TorusGeometry(0.4, 0.22, 16, 32);
+    const geoTorus = new THREE.TorusGeometry(0.4, 0.22, 12, 24); // Reduced segments
 
     const meshDefinitions = [
         { id: 'jelly_pink', geo: geoSphere, mat: matJellyPink },
@@ -381,7 +384,7 @@ const App = () => {
     particlesDataRef.current = particlesData;
 
     // --- Stardust System ---
-    const stardustCount = 1500;
+    const stardustCount = STARDUST_COUNT;
     const stardustGeo = new THREE.BufferGeometry();
     const stardustPos = new Float32Array(stardustCount * 3);
     
@@ -398,7 +401,7 @@ const App = () => {
     
     const stardustMat = new THREE.PointsMaterial({
         color: 0xFFF0F5,
-        size: 0.5, // Slightly larger
+        size: 0.5, 
         map: createParticleTexture(),
         transparent: true,
         opacity: 0.5,
@@ -410,14 +413,34 @@ const App = () => {
     scene.add(stardust);
     stardustRef.current = stardust;
 
+    // --- Snowfall System ---
+    const snowCount = SNOW_COUNT;
+    const snowGeo = new THREE.BufferGeometry();
+    const snowPos = new Float32Array(snowCount * 3);
+    for(let i=0; i<snowCount; i++) {
+        snowPos[i*3] = (Math.random() - 0.5) * 80;   
+        snowPos[i*3+1] = (Math.random() - 0.5) * 60; 
+        snowPos[i*3+2] = (Math.random() - 0.5) * 80; 
+    }
+    snowGeo.setAttribute('position', new THREE.BufferAttribute(snowPos, 3));
+    const snowMat = new THREE.PointsMaterial({
+        color: 0xffffff,
+        size: 0.7,
+        map: createParticleTexture(),
+        transparent: true,
+        opacity: 0.8,
+        depthWrite: false
+    });
+    const snowMesh = new THREE.Points(snowGeo, snowMat);
+    scene.add(snowMesh);
+    snowRef.current = snowMesh;
 
-    // --- Cute Star (Glowing Heart-ish Shape) ---
+
+    // --- Cute Star ---
     const starGroup = new THREE.Group();
     const starGeo = new THREE.OctahedronGeometry(1.5, 0); 
     const starMat = new THREE.MeshBasicMaterial({ color: 0xfffeb8, transparent: true, opacity: 0.9 });
     const starMesh = new THREE.Mesh(starGeo, starMat);
-    
-    // Halo
     const haloGeo = new THREE.SphereGeometry(2.5, 16, 16);
     const haloMat = new THREE.MeshBasicMaterial({ color: 0xffd700, transparent: true, opacity: 0.2 });
     const haloMesh = new THREE.Mesh(haloGeo, haloMat);
@@ -429,10 +452,11 @@ const App = () => {
     starRef.current = starGroup;
 
     const handleResize = () => {
-      camera.aspect = window.innerWidth / window.innerHeight;
-      camera.updateProjectionMatrix();
-      renderer.setSize(window.innerWidth, window.innerHeight);
-      composer.setSize(window.innerWidth, window.innerHeight);
+      if (!cameraRef.current || !rendererRef.current || !composerRef.current) return;
+      cameraRef.current.aspect = window.innerWidth / window.innerHeight;
+      cameraRef.current.updateProjectionMatrix();
+      rendererRef.current.setSize(window.innerWidth, window.innerHeight);
+      composerRef.current.setSize(window.innerWidth, window.innerHeight);
     };
     window.addEventListener('resize', handleResize);
 
@@ -444,38 +468,36 @@ const App = () => {
     };
   }, []);
   
-  // --- Input & Interaction (Keep logic, just sync) ---
+  // --- Input & Interaction (Touch Optimized) ---
   useEffect(() => {
-    const handleMouseDown = (e: MouseEvent | TouchEvent) => {
-       if (stateRef.current !== 'FOCUS' && stateRef.current !== 'FLOAT') return;
-       isDraggingRef.current = true;
-       const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
-       const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
-       lastMousePosRef.current = { x: clientX, y: clientY };
-       lastDetectionTimeRef.current = Date.now(); // Keep active
-    };
-    
-    const handleMouseMove = (e: MouseEvent | TouchEvent) => {
+    // Shared Move Logic
+    const handleMove = (x: number, y: number) => {
         if (!isDraggingRef.current) return;
         lastDetectionTimeRef.current = Date.now();
 
-        const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
-        const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
-        const deltaX = clientX - lastMousePosRef.current.x;
-        const deltaY = clientY - lastMousePosRef.current.y;
-        lastMousePosRef.current = { x: clientX, y: clientY };
+        const deltaX = x - lastMousePosRef.current.x;
+        const deltaY = y - lastMousePosRef.current.y;
+        lastMousePosRef.current = { x, y };
 
         if (stateRef.current === 'FOCUS') {
             const sensitivity = 0.03 / zoomRef.current;
             panRef.current.x += deltaX * sensitivity;
             panRef.current.y -= deltaY * sensitivity;
         } else if (stateRef.current === 'FLOAT') {
-            const sensitivity = 0.002;
+            const sensitivity = 0.003; // Slightly higher for touch feel
             cameraOffsetRef.current.x -= deltaX * sensitivity;
             cameraOffsetRef.current.y += deltaY * sensitivity;
         }
     };
-    
+
+    // Mouse Events
+    const handleMouseDown = (e: MouseEvent) => {
+       if (stateRef.current !== 'FOCUS' && stateRef.current !== 'FLOAT') return;
+       isDraggingRef.current = true;
+       lastMousePosRef.current = { x: e.clientX, y: e.clientY };
+       lastDetectionTimeRef.current = Date.now();
+    };
+    const handleMouseMove = (e: MouseEvent) => handleMove(e.clientX, e.clientY);
     const handleMouseUp = () => { isDraggingRef.current = false; };
     const handleWheel = (e: WheelEvent) => {
         if (stateRef.current !== 'FOCUS' && stateRef.current !== 'FLOAT') return;
@@ -484,22 +506,66 @@ const App = () => {
         lastDetectionTimeRef.current = Date.now();
     };
 
+    // Touch Events (Enhanced)
+    const handleTouchStart = (e: TouchEvent) => {
+       if (stateRef.current !== 'FOCUS' && stateRef.current !== 'FLOAT') return;
+       
+       if (e.touches.length === 1) {
+           isDraggingRef.current = true;
+           lastMousePosRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+       } else if (e.touches.length === 2) {
+           // Start Pinch
+           const dx = e.touches[0].clientX - e.touches[1].clientX;
+           const dy = e.touches[0].clientY - e.touches[1].clientY;
+           lastTouchDistanceRef.current = Math.sqrt(dx*dx + dy*dy);
+           isDraggingRef.current = false; // Stop rotating when pinching
+       }
+       lastDetectionTimeRef.current = Date.now();
+    };
+
+    const handleTouchMove = (e: TouchEvent) => {
+        e.preventDefault(); // Prevent scroll
+        if (e.touches.length === 1) {
+            handleMove(e.touches[0].clientX, e.touches[0].clientY);
+        } else if (e.touches.length === 2) {
+            // Pinch Zoom Logic
+            const dx = e.touches[0].clientX - e.touches[1].clientX;
+            const dy = e.touches[0].clientY - e.touches[1].clientY;
+            const dist = Math.sqrt(dx*dx + dy*dy);
+            
+            if (lastTouchDistanceRef.current > 0) {
+                const delta = dist - lastTouchDistanceRef.current;
+                zoomRef.current += delta * 0.005; // Zoom speed
+                zoomRef.current = Math.max(0.5, Math.min(zoomRef.current, 3.0));
+            }
+            lastTouchDistanceRef.current = dist;
+            lastDetectionTimeRef.current = Date.now();
+        }
+    };
+    
+    const handleTouchEnd = () => { 
+        isDraggingRef.current = false; 
+        lastTouchDistanceRef.current = 0;
+    };
+
     window.addEventListener('mousedown', handleMouseDown);
     window.addEventListener('mousemove', handleMouseMove);
     window.addEventListener('mouseup', handleMouseUp);
-    window.addEventListener('touchstart', handleMouseDown);
-    window.addEventListener('touchmove', handleMouseMove);
-    window.addEventListener('touchend', handleMouseUp);
     window.addEventListener('wheel', handleWheel);
+    
+    // Add non-passive listener for touch move to prevent scrolling
+    window.addEventListener('touchstart', handleTouchStart, { passive: false });
+    window.addEventListener('touchmove', handleTouchMove, { passive: false });
+    window.addEventListener('touchend', handleTouchEnd);
 
     return () => {
         window.removeEventListener('mousedown', handleMouseDown);
         window.removeEventListener('mousemove', handleMouseMove);
         window.removeEventListener('mouseup', handleMouseUp);
-        window.removeEventListener('touchstart', handleMouseDown);
-        window.removeEventListener('touchmove', handleMouseMove);
-        window.removeEventListener('touchend', handleMouseUp);
         window.removeEventListener('wheel', handleWheel);
+        window.removeEventListener('touchstart', handleTouchStart);
+        window.removeEventListener('touchmove', handleTouchMove);
+        window.removeEventListener('touchend', handleTouchEnd);
     };
   }, []);
 
@@ -567,9 +633,12 @@ const App = () => {
     const now = Date.now();
     const time = now * 0.001;
 
-    // --- AI Logic (Throttled) ---
+    // --- AI Logic (Throttled for Battery/Performance) ---
+    // Increase throttle time on mobile (60ms vs 40ms)
+    const throttleTime = isMobile ? 60 : 40;
     let currentFrameGesture: 'TREE' | 'FLOAT' | 'FOCUS' | null = null;
-    if (now - lastGestureTimeRef.current > 40) {
+    
+    if (now - lastGestureTimeRef.current > throttleTime) {
         lastGestureTimeRef.current = now;
         if (handLandmarkerRef.current && videoRef.current && videoRef.current.currentTime > 0) {
           try {
@@ -656,6 +725,19 @@ const App = () => {
         const cx = (visualHandPosRef.current.x + 1) / 2 * window.innerWidth;
         const cy = (visualHandPosRef.current.y + 1) / 2 * window.innerHeight;
         cursorRef.current.style.transform = `translate(${window.innerWidth - cx}px, ${cy}px)`;
+        // Create a trail dot occasionally
+        if (now - lastDetectionTimeRef.current < 500 && Math.random() > 0.5) {
+             const dot = document.createElement('div');
+             dot.className = 'trail-dot';
+             dot.style.left = (window.innerWidth - cx) + 'px';
+             dot.style.top = cy + 'px';
+             // Randomize size slightly
+             const size = 4 + Math.random() * 6;
+             dot.style.width = size + 'px';
+             dot.style.height = size + 'px';
+             document.body.appendChild(dot);
+             setTimeout(() => dot.remove(), 800);
+        }
         cursorRef.current.style.opacity = (now - lastDetectionTimeRef.current < 500) ? '1' : '0';
     }
 
@@ -676,11 +758,30 @@ const App = () => {
     if (stardustRef.current) {
         stardustRef.current.rotation.y = time * 0.03;
         stardustRef.current.position.y = Math.sin(time * 0.2) * 1.5;
-        // Twinkle opacity
         (stardustRef.current.material as THREE.PointsMaterial).opacity = 0.5 + Math.sin(time * 3) * 0.15;
     }
 
-    // --- Particles Animation (Soft & Dreamy) ---
+    // Snowfall Animation
+    if (snowRef.current) {
+        const positions = snowRef.current.geometry.attributes.position.array as Float32Array;
+        for (let i = 0; i < positions.length / 3; i++) {
+            // Y position
+            positions[i * 3 + 1] -= 0.1 + Math.random() * 0.05; 
+            // Sway X/Z
+            positions[i * 3] += Math.sin(time + i) * 0.02;
+            positions[i * 3 + 2] += Math.cos(time + i) * 0.02;
+
+            // Reset to top
+            if (positions[i * 3 + 1] < -30) {
+                positions[i * 3 + 1] = 30;
+                positions[i * 3] = (Math.random() - 0.5) * 80;
+                positions[i * 3 + 2] = (Math.random() - 0.5) * 80;
+            }
+        }
+        snowRef.current.geometry.attributes.position.needsUpdate = true;
+    }
+
+    // --- Particles Animation ---
     const dummy = new THREE.Object3D();
 
     particlesDataRef.current.forEach((p) => {
@@ -811,8 +912,18 @@ const App = () => {
     }
   };
   
+  const toggleMusic = () => {
+      if (audioRef.current) {
+          if (isPlaying) audioRef.current.pause();
+          else audioRef.current.play();
+          setIsPlaying(!isPlaying);
+      }
+  };
+
   return (
     <>
+      <audio ref={audioRef} loop src="https://cdn.pixabay.com/download/audio/2022/11/22/audio_febc508520.mp3?filename=christmas-magic-127475.mp3" />
+      
       <div id="ui-layer">
         {!started ? (
             // Landing Page State
@@ -839,7 +950,7 @@ const App = () => {
                 </div>
             </div>
         ) : (
-            // HUD State (Side Panel)
+            // HUD State (Side Panel - Tablet/Mobile Adapted)
             <div className="hud-overlay">
                 <div className="controls-hud">
                     <h1>Romantic Xmas</h1>
@@ -851,11 +962,18 @@ const App = () => {
                     </ul>
                     <div id="gesture-feedback">{gesture}</div>
                 </div>
+
+                <div className={`music-player ${isPlaying ? 'playing' : ''}`}>
+                    <div className="music-icon">🎵</div>
+                    <button className="music-btn" onClick={toggleMusic}>
+                        {isPlaying ? '暂停' : '播放'}
+                    </button>
+                </div>
             </div>
         )}
       </div>
       <div ref={cursorRef} id="hand-cursor"></div>
-      <video ref={videoRef} id="webcam-preview" playsInline muted style={{ display: started ? 'block' : 'none' }}></video>
+      <video ref={videoRef} id="webcam-preview" className={started ? 'active' : ''} playsInline muted></video>
       <div ref={mountRef} id="canvas-container" style={{width: '100%', height: '100%'}} />
     </>
   );
