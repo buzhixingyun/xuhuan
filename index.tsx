@@ -98,6 +98,7 @@ const App = () => {
         setLoading(false);
       } catch (error) {
         console.error("Failed to load MediaPipe:", error);
+        alert("Failed to load AI model. Please check your internet connection.");
       }
     };
     initVision();
@@ -335,44 +336,47 @@ const App = () => {
     let handPos = { x: 0, y: 0 }; 
 
     if (handLandmarkerRef.current && videoRef.current && videoRef.current.currentTime > 0) {
-      const results = handLandmarkerRef.current.detectForVideo(videoRef.current, Date.now());
-      
-      if (results.landmarks && results.landmarks.length > 0) {
-        const landmarks = results.landmarks[0];
-        const wrist = landmarks[0];
-        const thumbTip = landmarks[4];
-        const indexTip = landmarks[8];
-        const indexBase = landmarks[5];
+      try {
+        const results = handLandmarkerRef.current.detectForVideo(videoRef.current, Date.now());
         
-        // Calculate average open-ness of fingers
-        const fingerTips = [8, 12, 16, 20];
-        const fingerBases = [5, 9, 13, 17];
-        let openCount = 0;
-        
-        for(let i=0; i<4; i++) {
-            // Simple check: is tip further from wrist than base?
-            const tip = landmarks[fingerTips[i]];
-            const base = landmarks[fingerBases[i]];
-            const distTip = Math.hypot(tip.x - wrist.x, tip.y - wrist.y);
-            const distBase = Math.hypot(base.x - wrist.x, base.y - wrist.y);
-            if (distTip > distBase * 1.2) openCount++;
+        if (results.landmarks && results.landmarks.length > 0) {
+          const landmarks = results.landmarks[0];
+          const wrist = landmarks[0];
+          const thumbTip = landmarks[4];
+          const indexTip = landmarks[8];
+          
+          // Calculate average open-ness of fingers
+          const fingerTips = [8, 12, 16, 20];
+          const fingerBases = [5, 9, 13, 17];
+          let openCount = 0;
+          
+          for(let i=0; i<4; i++) {
+              // Simple check: is tip further from wrist than base?
+              const tip = landmarks[fingerTips[i]];
+              const base = landmarks[fingerBases[i]];
+              const distTip = Math.hypot(tip.x - wrist.x, tip.y - wrist.y);
+              const distBase = Math.hypot(base.x - wrist.x, base.y - wrist.y);
+              if (distTip > distBase * 1.2) openCount++;
+          }
+
+          // Pinch logic (Thumb tip close to Index tip)
+          const pinchDist = Math.hypot(thumbTip.x - indexTip.x, thumbTip.y - indexTip.y);
+
+          // Map Hand Position
+          handPos.x = (wrist.x - 0.5) * 2;
+          handPos.y = (wrist.y - 0.5) * 2;
+
+          if (pinchDist < 0.04) {
+            currentFrameGesture = 'FOCUS';
+          } else if (openCount <= 1) { // Fist (0 or 1 finger open)
+            currentFrameGesture = 'TREE';
+          } else if (openCount >= 3) { // Open Hand
+            currentFrameGesture = 'FLOAT';
+            handRotationRef.current = { x: handPos.x, y: handPos.y };
+          }
         }
-
-        // Pinch logic (Thumb tip close to Index tip)
-        const pinchDist = Math.hypot(thumbTip.x - indexTip.x, thumbTip.y - indexTip.y);
-
-        // Map Hand Position
-        handPos.x = (wrist.x - 0.5) * 2;
-        handPos.y = (wrist.y - 0.5) * 2;
-
-        if (pinchDist < 0.04) {
-          currentFrameGesture = 'FOCUS';
-        } else if (openCount <= 1) { // Fist (0 or 1 finger open)
-          currentFrameGesture = 'TREE';
-        } else if (openCount >= 3) { // Open Hand
-          currentFrameGesture = 'FLOAT';
-          handRotationRef.current = { x: handPos.x, y: handPos.y };
-        }
+      } catch (err) {
+        // Suppress transient detection errors
       }
     }
 
@@ -380,8 +384,7 @@ const App = () => {
     if (currentFrameGesture) {
         gestureHistoryRef.current.push(currentFrameGesture);
     } else {
-        // If hand lost, maybe keep previous or drift?
-        // Let's not push anything to history to let it stale slowly or maintain last known
+        // Optionally drift back to TREE if nothing detected for a long time
     }
     
     if (gestureHistoryRef.current.length > GESTURE_HISTORY_LIMIT) {
@@ -524,17 +527,44 @@ const App = () => {
 
 
   const handleStart = async () => {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      alert("Browser not supported or insecure context. Please try Chrome/Safari and ensure you are using HTTPS.");
+      return;
+    }
+
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+      const constraints = {
+        video: { 
+          facingMode: "user",
+          width: { ideal: 640 }, // Lower resolution for better performance
+          height: { ideal: 480 } 
+        } 
+      };
+
+      const stream = await navigator.mediaDevices.getUserMedia(constraints);
+      
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
-        videoRef.current.addEventListener('loadeddata', () => {
+        
+        // Ensure the video is playing before MediaPipe tries to read it
+        videoRef.current.onloadeddata = () => {
+           videoRef.current?.play().catch(e => console.error("Video play error", e));
            setStarted(true);
-        });
+        };
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error("Camera access denied:", err);
-      alert("Please allow camera access to use hand gestures.");
+      let msg = "Camera access denied. ";
+      if (err.name === 'NotAllowedError') {
+        msg += "Please enable camera permissions in your browser settings and reload.";
+      } else if (err.name === 'NotFoundError') {
+        msg += "No camera device found.";
+      } else if (err.name === 'NotReadableError') {
+        msg += "Your camera may be in use by another application.";
+      } else {
+        msg += err.message;
+      }
+      alert(msg);
     }
   };
 
@@ -589,7 +619,6 @@ const App = () => {
       <video 
         ref={videoRef} 
         id="webcam-preview" 
-        autoPlay 
         playsInline 
         muted
         style={{ display: started ? 'block' : 'none' }}
