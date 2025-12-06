@@ -57,7 +57,7 @@ const App = () => {
   // App State
   const [loading, setLoading] = useState(true);
   const [started, setStarted] = useState(false);
-  const [gesture, setGesture] = useState<string>('Detecting...');
+  const [gesture, setGesture] = useState<string>('检测中...');
   const [userPhotos, setUserPhotos] = useState<string[]>([]);
   
   // Refs for Three.js & Logic
@@ -98,7 +98,7 @@ const App = () => {
         setLoading(false);
       } catch (error) {
         console.error("Failed to load MediaPipe:", error);
-        alert("Failed to load AI model. Please check your internet connection.");
+        alert("AI 模型加载失败，请检查您的网络连接。");
       }
     };
     initVision();
@@ -403,10 +403,10 @@ const App = () => {
     else if (counts.FLOAT > GESTURE_HISTORY_LIMIT * 0.6) detectedState = 'FLOAT';
 
     // Update UI text
-    if (detectedState === 'TREE') setGesture('Fist (Assemble Tree)');
-    else if (detectedState === 'FLOAT') setGesture('Open Hand (Float & Rotate)');
-    else if (detectedState === 'FOCUS') setGesture('Pinch (View Photo)');
-    else if (!currentFrameGesture) setGesture('No Hand Detected');
+    if (detectedState === 'TREE') setGesture('✊ 握拳 (聚合圣诞树)');
+    else if (detectedState === 'FLOAT') setGesture('🖐 张开 (漂浮 & 旋转)');
+    else if (detectedState === 'FOCUS') setGesture('🤏 捏合 (查看照片)');
+    else if (!currentFrameGesture) setGesture('未检测到手势');
 
     // State Transition
     if (detectedState) {
@@ -528,7 +528,7 @@ const App = () => {
 
   const handleStart = async () => {
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-      alert("Browser not supported or insecure context. Please try Chrome/Safari and ensure you are using HTTPS.");
+      alert("浏览器不支持或当前环境不安全。请尝试使用 Chrome/Safari 并确保使用 HTTPS。");
       return;
     }
 
@@ -554,13 +554,13 @@ const App = () => {
       }
     } catch (err: any) {
       console.error("Camera access denied:", err);
-      let msg = "Camera access denied. ";
+      let msg = "无法访问摄像头：";
       if (err.name === 'NotAllowedError') {
-        msg += "Please enable camera permissions in your browser settings and reload.";
+        msg += "请在浏览器设置中开启摄像头权限并刷新页面。";
       } else if (err.name === 'NotFoundError') {
-        msg += "No camera device found.";
+        msg += "未检测到摄像头设备。";
       } else if (err.name === 'NotReadableError') {
-        msg += "Your camera may be in use by another application.";
+        msg += "摄像头可能被其他应用占用。";
       } else {
         msg += err.message;
       }
@@ -580,37 +580,37 @@ const App = () => {
     <>
       <div id="ui-layer">
         <div className="controls">
-          <h1>Christmas Magic</h1>
+          <h1>圣诞魔法树</h1>
           
           {!started ? (
              <>
-               <p>Experience a 3D Christmas Tree controlled by your hands.</p>
+               <p>体验由手势控制的 3D 梦幻圣诞树</p>
                {loading ? (
-                 <p style={{color: `#${COLORS.GOLD.toString(16).padStart(6, '0')}`, fontStyle: 'italic'}}>Loading Magic...</p>
+                 <p style={{color: `#${COLORS.GOLD.toString(16).padStart(6, '0')}`, fontStyle: 'italic'}}>魔法加载中...</p>
                ) : (
-                 <button className="btn" onClick={handleStart}>Enter Experience</button>
+                 <button className="btn" onClick={handleStart}>开启体验</button>
                )}
              </>
           ) : (
              <>
-               <p><strong>Gestures:</strong></p>
+               <p><strong>手势指南：</strong></p>
                <ul>
-                 <li>✊ <strong>Fist:</strong> Assemble Tree</li>
-                 <li>🖐 <strong>Open Hand:</strong> Float & Explore</li>
-                 <li>🤏 <strong>Pinch:</strong> Grab Photo</li>
+                 <li>✊ <strong>握拳：</strong> 聚合圣诞树</li>
+                 <li>🖐 <strong>张开：</strong> 漂浮与探索</li>
+                 <li>🤏 <strong>捏合：</strong> 抓取照片</li>
                </ul>
                <div id="gesture-feedback">{gesture}</div>
              </>
           )}
 
           <div style={{marginTop: '20px', borderTop: '1px solid rgba(212,175,55,0.3)', paddingTop: '15px'}}>
-             <p style={{marginBottom:'5px'}}>Add your memories:</p>
+             <p style={{marginBottom:'5px'}}>添加你的回忆：</p>
              <label className="file-upload-label">
                <input type="file" ref={fileInputRef} onChange={handleFileUpload} accept="image/*" />
-               + Upload Photo
+               + 上传照片
              </label>
              <p style={{fontSize: '0.8rem', color: '#888', marginTop: '5px'}}>
-               Photos on Tree: {userPhotos.length}
+               树上的照片: {userPhotos.length}
              </p>
           </div>
         </div>
