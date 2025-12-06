@@ -184,9 +184,8 @@
 
     <!-- 
       FIXED ImportMap:
-      1. Using esm.sh for React and Three.js (reliable).
-      2. Using jsdelivr for MediaPipe to match the WASM source location (prevents fetch errors).
-      3. CRITICAL: Removed all aistudiocdn entries to stop React version conflicts.
+      Using esm.sh for React and Three.js for maximum compatibility.
+      Using jsdelivr for MediaPipe to avoid CORS/Fetch issues with WASM.
     -->
     <script type="importmap">
 {
